@@ -1,6 +1,6 @@
 module github.com/cheesejaguar/vial
 
-go 1.26.1
+go 1.25.0
 
 require (
 	github.com/awnumar/memguard v0.23.0

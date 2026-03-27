@@ -40,6 +40,7 @@ brews:
   - repository:
       owner: cheesejaguar
       name: homebrew-tap
+    skip_upload: auto
     homepage: https://one-vial.org
     description: "The centralized secret vault for vibe coders"
     license: "MIT"
