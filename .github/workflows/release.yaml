@@ -29,15 +29,10 @@ jobs:
           cd web && npm ci && npm run build
           rm -f ../internal/dashboard/static/index.html
           cp -r build/* ../internal/dashboard/static/
-          cd ..
-          git config user.name "github-actions"
-          git config user.email "github-actions@github.com"
-          git add -f internal/dashboard/static/
-          git commit -m "ci: build dashboard assets [skip ci]" --allow-empty
 
       - uses: goreleaser/goreleaser-action@v6
         with:
           version: latest
-          args: release --clean
+          args: release --clean --skip=validate
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
