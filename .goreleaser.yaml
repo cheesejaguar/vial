@@ -39,6 +39,7 @@ brews:
   - repository:
       owner: cheesejaguar
       name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
     homepage: https://one-vial.org
     description: "The centralized secret vault for vibe coders"
     license: "MIT"
