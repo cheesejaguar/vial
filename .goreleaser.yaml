@@ -35,15 +35,15 @@ changelog:
       - '^test:'
       - '^ci:'
 
-brews:
-  - repository:
-      owner: cheesejaguar
-      name: homebrew-tap
-    skip_upload: auto
-    homepage: https://one-vial.org
-    description: "The centralized secret vault for vibe coders"
-    license: "MIT"
-    install: |
-      bin.install "vial"
-    test: |
-      system "#{bin}/vial", "version"
+# Uncomment when cheesejaguar/homebrew-tap repo is created:
+# brews:
+#   - repository:
+#       owner: cheesejaguar
+#       name: homebrew-tap
+#     homepage: https://one-vial.org
+#     description: "The centralized secret vault for vibe coders"
+#     license: "MIT"
+#     install: |
+#       bin.install "vial"
+#     test: |
+#       system "#{bin}/vial", "version"
