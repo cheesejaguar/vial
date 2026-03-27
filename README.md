@@ -28,7 +28,7 @@ Then you rotate a key. Good luck updating all 30 projects.
 
 ```bash
 brew install vial    # one day
-go install github.com/cheesejaguar/vial@latest
+go install github.com/cheesejaguar/vial/cmd/vial@latest
 
 vial init            # create your encrypted vault
 vial key set OPENAI_API_KEY
