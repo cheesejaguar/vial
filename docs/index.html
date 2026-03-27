@@ -1,0 +1,850 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Vial — The Secret Vault for Vibe Coders</title>
+<meta name="description" content="Store your API keys once. Pour them everywhere. Encrypted local vault with intelligent .env auto-population." />
+<meta property="og:title" content="Vial — The Secret Vault for Vibe Coders" />
+<meta property="og:description" content="Store your API keys once. Pour them everywhere." />
+<meta property="og:url" content="https://one-vial.org" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary_large_image" />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🧪</text></svg>" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+/* ═══════════════════════════════════════════════════════ */
+/*  VIAL — one-vial.org                                   */
+/*  Deep purple + gold on obsidian. Alchemical restraint. */
+/* ═══════════════════════════════════════════════════════ */
+
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --purple: #6B46C1;
+  --purple-light: #9F7AEA;
+  --purple-glow: #7C3AED;
+  --gold: #D69E2E;
+  --gold-soft: #ECC94B;
+  --bg: #07060e;
+  --bg-card: #0e0d18;
+  --bg-elevated: #13121f;
+  --text: #d4d0e0;
+  --text-bright: #f0ecff;
+  --text-muted: #6e6a80;
+  --border: #1e1b2e;
+  --serif: 'Instrument Serif', Georgia, serif;
+  --sans: 'DM Sans', system-ui, sans-serif;
+  --mono: 'JetBrains Mono', 'Fira Code', monospace;
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 16px;
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+::selection {
+  background: var(--purple);
+  color: #fff;
+}
+
+a { color: var(--gold); text-decoration: none; }
+a:hover { color: var(--gold-soft); }
+
+/* ── Noise overlay ── */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  opacity: 0.025;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* ── Container ── */
+.container {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 0 2rem;
+}
+
+/* ═══════════════ NAV ═══════════════ */
+nav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  padding: 1.25rem 0;
+  background: rgba(7, 6, 14, 0.8);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid transparent;
+  transition: border-color 0.3s;
+}
+nav.scrolled { border-bottom-color: var(--border); }
+.nav-inner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.nav-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-family: var(--mono);
+  font-weight: 500;
+  font-size: 1.05rem;
+  color: var(--text-bright);
+  letter-spacing: -0.02em;
+}
+.nav-brand span { font-size: 1.3rem; }
+.nav-links {
+  display: flex;
+  gap: 2rem;
+  list-style: none;
+  font-size: 0.88rem;
+  letter-spacing: 0.02em;
+}
+.nav-links a {
+  color: var(--text-muted);
+  transition: color 0.2s;
+}
+.nav-links a:hover { color: var(--text-bright); }
+.nav-cta {
+  font-family: var(--mono);
+  font-size: 0.82rem;
+  padding: 0.5rem 1.15rem;
+  background: var(--purple);
+  color: #fff !important;
+  border-radius: 6px;
+  transition: background 0.2s, transform 0.15s;
+}
+.nav-cta:hover { background: var(--purple-glow); transform: translateY(-1px); }
+
+/* ═══════════════ HERO ═══════════════ */
+.hero {
+  position: relative;
+  padding: 11rem 0 7rem;
+  text-align: center;
+  overflow: hidden;
+}
+
+/* Gradient orb behind hero */
+.hero::before {
+  content: '';
+  position: absolute;
+  top: -10%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 700px;
+  height: 700px;
+  background: radial-gradient(ellipse, rgba(107, 70, 193, 0.12) 0%, rgba(124, 58, 237, 0.04) 40%, transparent 70%);
+  pointer-events: none;
+}
+.hero::after {
+  content: '';
+  position: absolute;
+  top: 15%;
+  left: 50%;
+  transform: translateX(-40%);
+  width: 500px;
+  height: 400px;
+  background: radial-gradient(ellipse, rgba(214, 158, 46, 0.06) 0%, transparent 65%);
+  pointer-events: none;
+}
+
+.hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  color: var(--gold);
+  border: 1px solid rgba(214, 158, 46, 0.2);
+  padding: 0.35rem 1rem;
+  border-radius: 100px;
+  margin-bottom: 2.5rem;
+  letter-spacing: 0.04em;
+  opacity: 0;
+  animation: fadeUp 0.8s ease forwards;
+}
+.hero-badge::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  background: var(--gold);
+  border-radius: 50%;
+  animation: pulse 2s ease infinite;
+}
+
+h1 {
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: clamp(3rem, 7vw, 5.5rem);
+  line-height: 1.05;
+  color: var(--text-bright);
+  letter-spacing: -0.03em;
+  margin-bottom: 1.5rem;
+  opacity: 0;
+  animation: fadeUp 0.8s ease 0.1s forwards;
+}
+h1 em {
+  font-style: italic;
+  color: var(--gold);
+}
+
+.hero-sub {
+  font-size: 1.2rem;
+  color: var(--text-muted);
+  max-width: 540px;
+  margin: 0 auto 3rem;
+  line-height: 1.7;
+  opacity: 0;
+  animation: fadeUp 0.8s ease 0.2s forwards;
+}
+
+.hero-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  flex-wrap: wrap;
+  opacity: 0;
+  animation: fadeUp 0.8s ease 0.3s forwards;
+}
+
+.btn-primary {
+  font-family: var(--mono);
+  font-size: 0.88rem;
+  padding: 0.75rem 2rem;
+  background: var(--purple);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.btn-primary:hover { background: var(--purple-glow); transform: translateY(-2px); color: #fff; }
+
+.btn-ghost {
+  font-family: var(--mono);
+  font-size: 0.88rem;
+  padding: 0.75rem 2rem;
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-decoration: none;
+}
+.btn-ghost:hover { border-color: var(--text-muted); color: var(--text-bright); }
+
+/* ═══════════════ TERMINAL ═══════════════ */
+.terminal-wrap {
+  max-width: 680px;
+  margin: 4rem auto 0;
+  opacity: 0;
+  animation: fadeUp 0.8s ease 0.45s forwards;
+}
+.terminal {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  text-align: left;
+  box-shadow:
+    0 4px 30px rgba(0, 0, 0, 0.4),
+    0 0 0 1px rgba(255, 255, 255, 0.02) inset;
+}
+.terminal-bar {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0.85rem 1.2rem;
+  background: var(--bg-elevated);
+  border-bottom: 1px solid var(--border);
+}
+.terminal-dot {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+}
+.terminal-dot:nth-child(1) { background: #ff5f57; }
+.terminal-dot:nth-child(2) { background: #febc2e; }
+.terminal-dot:nth-child(3) { background: #28c840; }
+.terminal-bar span {
+  flex: 1;
+  text-align: center;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-right: 40px;
+}
+.terminal-body {
+  padding: 1.4rem 1.6rem;
+  font-family: var(--mono);
+  font-size: 0.82rem;
+  line-height: 1.8;
+  overflow-x: auto;
+}
+.t-prompt { color: var(--purple-light); }
+.t-cmd { color: var(--text-bright); }
+.t-flag { color: var(--gold); }
+.t-comment { color: var(--text-muted); font-style: italic; }
+.t-success { color: #48bb78; }
+.t-fail { color: #fc8181; }
+.t-result { color: var(--text); }
+.t-blank { display: block; height: 0.5rem; }
+
+/* ═══════════════ SECTIONS ═══════════════ */
+section {
+  padding: 7rem 0;
+}
+
+.section-label {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: var(--gold);
+  margin-bottom: 1rem;
+}
+
+h2 {
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: clamp(2rem, 4vw, 3rem);
+  color: var(--text-bright);
+  letter-spacing: -0.02em;
+  margin-bottom: 1.25rem;
+  line-height: 1.15;
+}
+
+h2 em { font-style: italic; color: var(--gold); }
+
+.section-desc {
+  color: var(--text-muted);
+  max-width: 560px;
+  font-size: 1.05rem;
+  line-height: 1.7;
+  margin-bottom: 3.5rem;
+}
+
+/* ═══════════════ PROBLEM ═══════════════ */
+.problem {
+  border-top: 1px solid var(--border);
+}
+.problem-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4rem;
+  align-items: center;
+}
+.problem-text p {
+  color: var(--text);
+  font-size: 1.05rem;
+  line-height: 1.75;
+  margin-bottom: 1.5rem;
+}
+.problem-text p:last-child { margin-bottom: 0; }
+.problem-text strong { color: var(--text-bright); font-weight: 600; }
+
+.pain-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+.pain-list li {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+  padding: 1.15rem 1.4rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 0.92rem;
+  color: var(--text);
+  line-height: 1.5;
+}
+.pain-icon {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(252, 129, 129, 0.08);
+  border-radius: 8px;
+  font-size: 1rem;
+}
+
+/* ═══════════════ FEATURES ═══════════════ */
+.features { border-top: 1px solid var(--border); }
+
+.feature-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.25rem;
+}
+.feature-card {
+  padding: 2rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  transition: border-color 0.25s, transform 0.25s;
+}
+.feature-card:hover {
+  border-color: rgba(107, 70, 193, 0.3);
+  transform: translateY(-3px);
+}
+.feature-icon {
+  font-size: 1.5rem;
+  margin-bottom: 1.1rem;
+  display: block;
+}
+.feature-card h3 {
+  font-family: var(--sans);
+  font-weight: 600;
+  font-size: 1rem;
+  color: var(--text-bright);
+  margin-bottom: 0.6rem;
+}
+.feature-card p {
+  font-size: 0.88rem;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+/* ═══════════════ MATCHING TABLE ═══════════════ */
+.matching { border-top: 1px solid var(--border); }
+
+.match-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg-card);
+}
+.match-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+.match-table th {
+  text-align: left;
+  padding: 1rem 1.5rem;
+  font-family: var(--mono);
+  font-weight: 500;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+}
+.match-table td {
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid rgba(30, 27, 46, 0.5);
+  color: var(--text);
+}
+.match-table tr:last-child td { border-bottom: none; }
+.match-table .tier {
+  font-family: var(--mono);
+  font-weight: 500;
+  color: var(--purple-light);
+  font-size: 0.82rem;
+}
+.match-table code {
+  font-family: var(--mono);
+  font-size: 0.82rem;
+  color: var(--gold);
+  background: rgba(214, 158, 46, 0.07);
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+}
+
+/* ═══════════════ INSTALL ═══════════════ */
+.install {
+  border-top: 1px solid var(--border);
+  text-align: center;
+}
+.install-box {
+  display: inline-flex;
+  align-items: center;
+  gap: 1rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.2rem 2rem;
+  margin-bottom: 1.5rem;
+}
+.install-box code {
+  font-family: var(--mono);
+  font-size: 1rem;
+  color: var(--text-bright);
+}
+.install-box .copy-btn {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  padding: 0.3rem 0.7rem;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.install-box .copy-btn:hover { border-color: var(--text-muted); color: var(--text-bright); }
+.install-alt {
+  font-size: 0.88rem;
+  color: var(--text-muted);
+}
+.install-alt code {
+  font-family: var(--mono);
+  color: var(--text);
+  font-size: 0.85rem;
+}
+
+/* ═══════════════ FOOTER ═══════════════ */
+footer {
+  border-top: 1px solid var(--border);
+  padding: 3rem 0;
+  text-align: center;
+}
+.footer-inner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.footer-brand {
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+.footer-links {
+  display: flex;
+  gap: 1.75rem;
+  list-style: none;
+}
+.footer-links a {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  transition: color 0.2s;
+}
+.footer-links a:hover { color: var(--text-bright); }
+
+.footer-tagline {
+  margin-top: 2.5rem;
+  padding-top: 2rem;
+  border-top: 1px solid var(--border);
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 1.05rem;
+  color: var(--text-muted);
+}
+
+/* ═══════════════ ANIMATIONS ═══════════════ */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* Scroll-triggered reveals */
+.reveal {
+  opacity: 0;
+  transform: translateY(30px);
+  transition: opacity 0.7s ease, transform 0.7s ease;
+}
+.reveal.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ═══════════════ RESPONSIVE ═══════════════ */
+@media (max-width: 768px) {
+  .hero { padding: 8rem 0 4rem; }
+  .problem-grid { grid-template-columns: 1fr; gap: 2.5rem; }
+  .feature-grid { grid-template-columns: 1fr; }
+  .nav-links { display: none; }
+  .footer-inner { flex-direction: column; gap: 1.25rem; }
+  .match-table th, .match-table td { padding: 0.75rem 1rem; }
+}
+@media (max-width: 480px) {
+  .container { padding: 0 1.25rem; }
+  .hero-actions { flex-direction: column; align-items: center; }
+  .install-box { flex-direction: column; padding: 1.2rem 1.5rem; }
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════ NAV ═══════════════ -->
+<nav id="nav">
+  <div class="container nav-inner">
+    <a href="/" class="nav-brand"><span>🧪</span> vial</a>
+    <ul class="nav-links">
+      <li><a href="#features">Features</a></li>
+      <li><a href="#matching">Matching</a></li>
+      <li><a href="#install">Install</a></li>
+      <li><a href="https://github.com/cheesejaguar/vial" class="nav-cta">GitHub</a></li>
+    </ul>
+  </div>
+</nav>
+
+<!-- ═══════════════ HERO ═══════════════ -->
+<section class="hero">
+  <div class="container">
+    <div class="hero-badge">Open Source &middot; MIT License</div>
+    <h1>Store your keys once.<br />Pour them <em>everywhere.</em></h1>
+    <p class="hero-sub">Vial is an encrypted local vault for your API keys. One command auto-populates any project's <code style="font-family:var(--mono);font-size:0.9em;color:var(--gold);background:rgba(214,158,46,0.08);padding:0.1em 0.35em;border-radius:3px">.env</code> from a single source of truth.</p>
+    <div class="hero-actions">
+      <a href="#install" class="btn-primary">Get Started</a>
+      <a href="https://github.com/cheesejaguar/vial" class="btn-ghost">View Source →</a>
+    </div>
+
+    <div class="terminal-wrap">
+      <div class="terminal">
+        <div class="terminal-bar">
+          <div class="terminal-dot"></div>
+          <div class="terminal-dot"></div>
+          <div class="terminal-dot"></div>
+          <span>~/projects/my-saas-app</span>
+        </div>
+        <div class="terminal-body">
+          <span class="t-prompt">$</span> <span class="t-cmd">vial pour</span><br />
+          <span class="t-blank"></span>
+          <span class="t-success">&ensp; ✓</span> <span class="t-result">OPENAI_API_KEY → matched from vault</span><br />
+          <span class="t-success">&ensp; ✓</span> <span class="t-result">STRIPE_SECRET_KEY → matched from vault</span><br />
+          <span class="t-success">&ensp; ✓</span> <span class="t-result">NEXT_PUBLIC_SUPABASE_URL → matched <span class="t-comment">(prefix-stripped: SUPABASE_URL)</span></span><br />
+          <span class="t-success">&ensp; ✓</span> <span class="t-result">SUPABASE_ANON_KEY → matched <span class="t-comment">(variant: SUPABASE_KEY)</span></span><br />
+          <span class="t-fail">&ensp; ✗</span> <span class="t-result">DATABASE_URL → not found in vault</span><br />
+          <span class="t-blank"></span>
+          <span class="t-result">&ensp; → .env created with 4/5 keys populated</span><br />
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ PROBLEM ═══════════════ -->
+<section class="problem">
+  <div class="container">
+    <div class="problem-grid">
+      <div class="problem-text reveal">
+        <div class="section-label">The problem</div>
+        <h2>You've got 30 projects and <em>one sanity</em></h2>
+        <p>You're vibe coding. AI assistants are spinning up repos faster than you can populate <code>.env</code> files. Every project needs the same keys — copy-pasted from a password manager, an old Notion doc, three stale <code>.env</code> files, and a Slack DM to yourself.</p>
+        <p><strong>Then you rotate a key.</strong> Good luck updating all 30 projects.</p>
+      </div>
+      <ul class="pain-list reveal">
+        <li>
+          <div class="pain-icon">📋</div>
+          <div><strong>Copy-paste ceremony</strong> for every new project. Find keys, open template, transcribe one by one.</div>
+        </li>
+        <li>
+          <div class="pain-icon">🔑</div>
+          <div><strong>No single source of truth.</strong> Keys scattered across dashboards, text files, and stale <code>.env</code> files.</div>
+        </li>
+        <li>
+          <div class="pain-icon">🔄</div>
+          <div><strong>Key rotation is intractable.</strong> One rotated key means manually updating every project that uses it.</div>
+        </li>
+        <li>
+          <div class="pain-icon">🏗️</div>
+          <div><strong>Existing tools don't fit.</strong> Vault needs clusters. Doppler caps at 10 projects. 1Password needs per-var URIs.</div>
+        </li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ FEATURES ═══════════════ -->
+<section class="features" id="features">
+  <div class="container">
+    <div class="section-label reveal">Capabilities</div>
+    <h2 class="reveal">Everything a vault <em>should</em> be</h2>
+    <p class="section-desc reveal">One encrypted file. One command. Zero ceremony.</p>
+
+    <div class="feature-grid">
+      <div class="feature-card reveal">
+        <span class="feature-icon">🫗</span>
+        <h3>Pour</h3>
+        <p>Reads your <code>.env.example</code>, matches keys against your vault, writes a <code>.env</code>. One command, zero config.</p>
+      </div>
+      <div class="feature-card reveal">
+        <span class="feature-icon">🧠</span>
+        <h3>5-Tier Matching</h3>
+        <p>Exact match → normalization → alias variants → comment parsing → LLM reasoning. It understands your keys.</p>
+      </div>
+      <div class="feature-card reveal">
+        <span class="feature-icon">🔐</span>
+        <h3>Encrypted at Rest</h3>
+        <p>Argon2id KDF → AES-256-GCM per-value encryption. Keys in <code>memguard</code> locked memory. Secrets never in CLI args.</p>
+      </div>
+      <div class="feature-card reveal">
+        <span class="feature-icon">🔄</span>
+        <h3>Rotate Once</h3>
+        <p>Update a key in your vault, run <code>pour --all</code>. Every registered project gets the new value instantly.</p>
+      </div>
+      <div class="feature-card reveal">
+        <span class="feature-icon">🍺</span>
+        <h3>Brew</h3>
+        <p>Run any command with secrets injected as env vars. No <code>.env</code> file written to disk. <code>vial brew -- node app.js</code></p>
+      </div>
+      <div class="feature-card reveal">
+        <span class="feature-icon">🧪</span>
+        <h3>Distill</h3>
+        <p>Already have <code>.env</code> files scattered everywhere? Import them into the vault. <code>vial distill .env</code></p>
+      </div>
+      <div class="feature-card reveal">
+        <span class="feature-icon">🖥️</span>
+        <h3>Dashboard</h3>
+        <p>Local web UI embedded in the binary. Browse secrets, manage aliases, track key health. Dark-themed, naturally.</p>
+      </div>
+      <div class="feature-card reveal">
+        <span class="feature-icon">🔁</span>
+        <h3>Sync</h3>
+        <p>Keep your vault across machines via filesystem sync (iCloud, Dropbox) or a dedicated git repo.</p>
+      </div>
+      <div class="feature-card reveal">
+        <span class="feature-icon">⚙️</span>
+        <h3>CI/CD Ready</h3>
+        <p>Set <code>VIAL_MASTER_KEY</code> and run headless. No interactive prompts. Works in GitHub Actions, Docker, anywhere.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ MATCHING ═══════════════ -->
+<section class="matching" id="matching">
+  <div class="container">
+    <div class="section-label reveal">Intelligence</div>
+    <h2 class="reveal">Matching that <em>thinks</em></h2>
+    <p class="section-desc reveal">Your <code>.env.example</code> says <code>OPENAI_KEY</code>. Your vault has <code>OPENAI_API_KEY</code>. Framework prefixes, naming variants, even comments — Vial resolves them all.</p>
+
+    <div class="match-table-wrap reveal">
+      <table class="match-table">
+        <thead>
+          <tr>
+            <th>Tier</th>
+            <th>Method</th>
+            <th>Example</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="tier">1</td>
+            <td>Exact match</td>
+            <td><code>OPENAI_API_KEY</code> = <code>OPENAI_API_KEY</code></td>
+          </tr>
+          <tr>
+            <td class="tier">2</td>
+            <td>Prefix stripping</td>
+            <td><code>NEXT_PUBLIC_SUPABASE_URL</code> → <code>SUPABASE_URL</code></td>
+          </tr>
+          <tr>
+            <td class="tier">3</td>
+            <td>Alias &amp; variants</td>
+            <td><code>OPENAI_KEY</code> → <code>OPENAI_API_KEY</code></td>
+          </tr>
+          <tr>
+            <td class="tier">4</td>
+            <td>Comment-informed</td>
+            <td><code># Your Stripe secret key</code> → <code>STRIPE_SECRET_KEY</code></td>
+          </tr>
+          <tr>
+            <td class="tier">5</td>
+            <td>LLM-assisted</td>
+            <td>Calls an inference API for truly ambiguous cases</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ INSTALL ═══════════════ -->
+<section class="install" id="install">
+  <div class="container">
+    <div class="section-label reveal">Get started</div>
+    <h2 class="reveal">One install. <em>Zero dependencies.</em></h2>
+    <p class="section-desc reveal" style="margin-left:auto;margin-right:auto;text-align:center;">Single static binary. ~9 MB. macOS and Linux, arm64 and amd64.</p>
+
+    <div class="install-box reveal">
+      <code id="install-cmd">go install github.com/cheesejaguar/vial@latest</code>
+      <button class="copy-btn" onclick="copyInstall()">Copy</button>
+    </div>
+    <p class="install-alt reveal">
+      Or from source: <code>git clone &amp;&amp; make build</code>
+    </p>
+  </div>
+</section>
+
+<!-- ═══════════════ FOOTER ═══════════════ -->
+<footer>
+  <div class="container">
+    <div class="footer-inner">
+      <div class="footer-brand">🧪 vial &middot; MIT License</div>
+      <ul class="footer-links">
+        <li><a href="https://github.com/cheesejaguar/vial">GitHub</a></li>
+        <li><a href="https://github.com/cheesejaguar/vial/blob/main/CONTRIBUTING.md">Contributing</a></li>
+        <li><a href="https://github.com/cheesejaguar/vial/blob/main/SECURITY.md">Security</a></li>
+        <li><a href="https://github.com/cheesejaguar/vial/blob/main/CHANGELOG.md">Changelog</a></li>
+      </ul>
+    </div>
+    <div class="footer-tagline">Potent secrets, safely contained.</div>
+  </div>
+</footer>
+
+<script>
+// Nav scroll effect
+const nav = document.getElementById('nav');
+window.addEventListener('scroll', () => {
+  nav.classList.toggle('scrolled', window.scrollY > 20);
+});
+
+// Scroll reveal
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach((entry, i) => {
+    if (entry.isIntersecting) {
+      // Stagger siblings
+      const siblings = entry.target.parentElement.querySelectorAll('.reveal');
+      const idx = Array.from(siblings).indexOf(entry.target);
+      entry.target.style.transitionDelay = `${idx * 0.08}s`;
+      entry.target.classList.add('visible');
+      observer.unobserve(entry.target);
+    }
+  });
+}, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+
+document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+// Copy button
+function copyInstall() {
+  const cmd = document.getElementById('install-cmd').textContent;
+  navigator.clipboard.writeText(cmd).then(() => {
+    const btn = document.querySelector('.copy-btn');
+    btn.textContent = 'Copied!';
+    setTimeout(() => { btn.textContent = 'Copy'; }, 2000);
+  });
+}
+</script>
+</body>
+</html>
