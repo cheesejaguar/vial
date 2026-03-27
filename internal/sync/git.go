@@ -64,6 +64,10 @@ func (g *GitBackend) Push(localPath string) error {
 		return err
 	}
 
+	if g.remote == "" {
+		return nil // local-only, no push
+	}
+
 	return g.git("push", "origin", g.branch)
 }
 
