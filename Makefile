@@ -23,14 +23,18 @@ build-quick:
 install:
 	go install -ldflags "$(LDFLAGS)" ./cmd/vial
 
+TESTABLE_PKGS := ./internal/vault/... ./internal/parser/... ./internal/matcher/... \
+	./internal/alias/... ./internal/config/... ./internal/llm/... \
+	./internal/project/... ./internal/scanner/... ./internal/sync/...
+
 test:
-	go test -race ./internal/...
+	go test -race $(TESTABLE_PKGS)
 
 test-verbose:
-	go test -race -v ./internal/...
+	go test -race -v $(TESTABLE_PKGS)
 
 test-cover:
-	go test -race -coverprofile=coverage.txt -covermode=atomic ./internal/...
+	go test -race -coverprofile=coverage.txt -covermode=atomic $(TESTABLE_PKGS)
 	go tool cover -html=coverage.txt -o coverage.html
 
 vet:

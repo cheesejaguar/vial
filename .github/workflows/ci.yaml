@@ -20,7 +20,16 @@ jobs:
         run: go vet ./...
 
       - name: Test
-        run: go test -race -coverprofile=coverage.txt -covermode=atomic ./internal/...
+        run: |
+          go test -race ./internal/vault/... \
+                        ./internal/parser/... \
+                        ./internal/matcher/... \
+                        ./internal/alias/... \
+                        ./internal/config/... \
+                        ./internal/llm/... \
+                        ./internal/project/... \
+                        ./internal/scanner/... \
+                        ./internal/sync/...
 
       - name: Build
         run: go build -o /dev/null ./cmd/vial

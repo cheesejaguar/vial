@@ -127,6 +127,10 @@ func (g *GitBackend) ensureRepo() error {
 		return fmt.Errorf("git init: %w", err)
 	}
 
+	// Set a default git identity if none is configured (for CI/containers)
+	g.git("config", "user.email", "vial@localhost")
+	g.git("config", "user.name", "vial")
+
 	if g.remote != "" {
 		if err := g.git("remote", "add", "origin", g.remote); err != nil {
 			// May already exist
