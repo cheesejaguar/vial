@@ -45,5 +45,8 @@ brews:
     license: "MIT"
     install: |
       bin.install "vial"
+    post_install: |
+      # Remove quarantine attribute so unsigned binary runs on macOS
+      system_command "xattr", args: ["-d", "com.apple.quarantine", bin/"vial"], print_stderr: false
     test: |
       system "#{bin}/vial", "version"
