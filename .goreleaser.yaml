@@ -1,0 +1,49 @@
+version: 2
+
+before:
+  hooks:
+    - go mod tidy
+    - go vet ./...
+
+builds:
+  - main: ./cmd/vial
+    binary: vial
+    ldflags:
+      - -s -w
+      - -X github.com/cheesejaguar/vial/internal/cli.version={{.Version}}
+      - -X github.com/cheesejaguar/vial/internal/cli.commit={{.ShortCommit}}
+      - -X github.com/cheesejaguar/vial/internal/cli.date={{.Date}}
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+
+archives:
+  - format: tar.gz
+    name_template: >-
+      {{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}
+
+checksum:
+  name_template: 'checksums.txt'
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^ci:'
+
+brews:
+  - repository:
+      owner: cheesejaguar
+      name: homebrew-tap
+    homepage: https://one-vial.ai
+    description: "The centralized secret vault for vibe coders"
+    license: "MIT"
+    install: |
+      bin.install "vial"
+    test: |
+      system "#{bin}/vial", "version"

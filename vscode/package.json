@@ -1,0 +1,60 @@
+{
+  "name": "vial",
+  "displayName": "Vial - Secret Vault",
+  "description": "Manage your Vial secret vault from VS Code",
+  "version": "0.0.1",
+  "publisher": "cheesejaguar",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "workspaceContains:.env.example",
+    "workspaceContains:.env"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "vial.pour",
+        "title": "Vial: Pour - Populate .env from vault"
+      },
+      {
+        "command": "vial.diff",
+        "title": "Vial: Diff - Compare .env.example vs vault"
+      },
+      {
+        "command": "vial.lock",
+        "title": "Vial: Lock vault"
+      },
+      {
+        "command": "vial.unlock",
+        "title": "Vial: Unlock vault"
+      },
+      {
+        "command": "vial.list",
+        "title": "Vial: List secrets"
+      }
+    ],
+    "configuration": {
+      "title": "Vial",
+      "properties": {
+        "vial.binaryPath": {
+          "type": "string",
+          "default": "vial",
+          "description": "Path to the vial binary"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.85.0",
+    "typescript": "^5.3.0"
+  }
+}
