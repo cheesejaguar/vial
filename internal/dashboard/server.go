@@ -5,10 +5,13 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/fs"
 	"math"
+	"mime"
 	"net"
 	"net/http"
+	"path"
 	"path/filepath"
 	"strings"
 	"time"
@@ -68,25 +71,8 @@ func (s *Server) Start() error {
 	if err != nil {
 		return fmt.Errorf("accessing embedded frontend: %w", err)
 	}
-	fileServer := http.FileServer(http.FS(staticFS))
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		// Try to serve the file directly
-		path := r.URL.Path
-		if path == "/" {
-			path = "/index.html"
-		}
-
-		// Check if file exists in embedded FS
-		f, err := staticFS.Open(strings.TrimPrefix(path, "/"))
-		if err == nil {
-			f.Close()
-			fileServer.ServeHTTP(w, r)
-			return
-		}
-
-		// SPA fallback: serve index.html for client-side routing
-		r.URL.Path = "/"
-		fileServer.ServeHTTP(w, r)
+		serveStaticFile(w, r, staticFS)
 	})
 
 	addr := fmt.Sprintf("127.0.0.1:%d", s.port)
@@ -278,6 +264,69 @@ func (s *Server) handleHealthOverview(w http.ResponseWriter, r *http.Request) {
 		"stale_count":    staleCount,
 		"secrets":        secretHealth,
 	})
+}
+
+// serveStaticFile serves a file from the embedded FS with correct MIME types.
+// Falls back to index.html for SPA client-side routing.
+func serveStaticFile(w http.ResponseWriter, r *http.Request, staticFS fs.FS) {
+	urlPath := r.URL.Path
+	if urlPath == "/" {
+		urlPath = "/index.html"
+	}
+
+	// Strip leading slash for fs.Open
+	filePath := strings.TrimPrefix(urlPath, "/")
+
+	f, err := staticFS.Open(filePath)
+	if err != nil {
+		// SPA fallback: serve index.html for client-side routes
+		filePath = "index.html"
+		f, err = staticFS.Open(filePath)
+		if err != nil {
+			http.NotFound(w, r)
+			return
+		}
+	}
+	defer f.Close()
+
+	// Get file info for size
+	stat, err := f.Stat()
+	if err != nil || stat.IsDir() {
+		// If it's a directory, try index.html inside it
+		f.Close()
+		filePath = filePath + "/index.html"
+		f, err = staticFS.Open(filePath)
+		if err != nil {
+			// SPA fallback
+			f, _ = staticFS.Open("index.html")
+			if f == nil {
+				http.NotFound(w, r)
+				return
+			}
+			filePath = "index.html"
+		}
+		defer f.Close()
+		stat, _ = f.Stat()
+	}
+
+	// Set Content-Type based on file extension
+	ext := path.Ext(filePath)
+	contentType := mime.TypeByExtension(ext)
+	if contentType == "" {
+		contentType = "application/octet-stream"
+	}
+	w.Header().Set("Content-Type", contentType)
+
+	// Cache immutable assets aggressively
+	if strings.Contains(filePath, "/immutable/") {
+		w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+	}
+
+	if stat != nil {
+		w.Header().Set("Content-Length", fmt.Sprintf("%d", stat.Size()))
+	}
+
+	io.Copy(w, f)
 }
 
 func writeJSON(w http.ResponseWriter, data any) {
