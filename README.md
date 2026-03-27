@@ -13,7 +13,7 @@
 </p>
 
 <p align="center">
-  <a href="https://one-vial.ai">one-vial.ai</a>
+  <a href="https://one-vial.org">one-vial.org</a>
 </p>
 
 ---

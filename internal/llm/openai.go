@@ -100,7 +100,7 @@ func (p *OpenAIProvider) Complete(ctx context.Context, req CompletionRequest) (*
 
 	// OpenRouter-specific header
 	if strings.Contains(p.endpoint, "openrouter") {
-		httpReq.Header.Set("HTTP-Referer", "https://one-vial.ai")
+		httpReq.Header.Set("HTTP-Referer", "https://one-vial.org")
 		httpReq.Header.Set("X-Title", "Vial Secret Vault")
 	}
 
