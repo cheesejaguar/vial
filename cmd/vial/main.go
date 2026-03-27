@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/awnumar/memguard"
@@ -12,6 +13,7 @@ func main() {
 	defer memguard.Purge()
 
 	if err := cli.Execute(); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %s\n", err)
 		os.Exit(1)
 	}
 }
