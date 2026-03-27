@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/awnumar/memguard"
+	"github.com/charmbracelet/huh"
 	"github.com/spf13/cobra"
 
 	"github.com/cheesejaguar/vial/internal/parser"
@@ -21,11 +22,21 @@ var distillCmd = &cobra.Command{
 	RunE:    runDistill,
 }
 
-var distillOverwrite bool
+var (
+	distillOverwrite bool
+	distillAll       bool
+)
 
 func init() {
 	distillCmd.Flags().BoolVar(&distillOverwrite, "overwrite", false, "Overwrite existing vault keys without prompting")
+	distillCmd.Flags().BoolVar(&distillAll, "all", false, "Import all keys without interactive selection")
 	rootCmd.AddCommand(distillCmd)
+}
+
+type distillCandidate struct {
+	key   string
+	value string
+	status string // "new", "changed", "same"
 }
 
 func runDistill(cmd *cobra.Command, args []string) error {
@@ -40,7 +51,6 @@ func runDistill(cmd *cobra.Command, args []string) error {
 		envFile = args[0]
 	}
 
-	// Resolve relative to current dir
 	if !filepath.IsAbs(envFile) {
 		cwd, _ := os.Getwd()
 		envFile = filepath.Join(cwd, envFile)
@@ -57,56 +67,136 @@ func runDistill(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("parsing %s: %w", envFile, err)
 	}
 
-	imported := 0
-	skipped := 0
-	overwritten := 0
-
+	// Build candidate list
+	var candidates []distillCandidate
 	for _, e := range entries {
 		if e.Key == "" || e.IsComment || e.IsBlank || !e.HasValue {
 			continue
 		}
-
 		val := strings.TrimSpace(e.Value)
 		if val == "" {
 			continue
 		}
 
-		// Check if key already exists
+		c := distillCandidate{key: e.Key, value: val, status: "new"}
+
 		existing, existErr := vm.GetSecret(e.Key)
 		if existErr == nil {
 			existingVal := string(existing.Bytes())
 			existing.Destroy()
-
 			if existingVal == val {
-				skipped++
-				continue
+				c.status = "same"
+			} else {
+				c.status = "changed"
 			}
-
-			if !distillOverwrite {
-				fmt.Printf("  ⚠ %s already in vault (use --overwrite to replace)\n", e.Key)
-				skipped++
-				continue
-			}
-			overwritten++
 		}
 
-		value := memguard.NewBufferFromBytes([]byte(val))
-		if err := vm.SetSecret(e.Key, value); err != nil {
+		candidates = append(candidates, c)
+	}
+
+	if len(candidates) == 0 {
+		fmt.Println("No keys with values found in", filepath.Base(envFile))
+		return nil
+	}
+
+	// Filter out unchanged keys
+	var importable []distillCandidate
+	for _, c := range candidates {
+		if c.status == "same" {
+			continue
+		}
+		if c.status == "changed" && !distillOverwrite {
+			continue
+		}
+		importable = append(importable, c)
+	}
+
+	if len(importable) == 0 {
+		sameCount := 0
+		changedCount := 0
+		for _, c := range candidates {
+			if c.status == "same" {
+				sameCount++
+			} else if c.status == "changed" {
+				changedCount++
+			}
+		}
+		fmt.Printf("Nothing to import. %d already in vault", sameCount)
+		if changedCount > 0 {
+			fmt.Printf(", %d changed (use --overwrite)", changedCount)
+		}
+		fmt.Println()
+		return nil
+	}
+
+	// Determine which keys to import
+	var selectedKeys []string
+
+	if distillAll || !isInteractive() {
+		// Non-interactive: import all importable keys
+		for _, c := range importable {
+			selectedKeys = append(selectedKeys, c.key)
+		}
+	} else {
+		// Interactive: multi-select with huh
+		var options []huh.Option[string]
+		for _, c := range importable {
+			label := c.key
+			if c.status == "changed" {
+				label += " (update)"
+			}
+			label += "  " + maskValue(c.value)
+			options = append(options, huh.NewOption(label, c.key).Selected(true))
+		}
+
+		form := huh.NewForm(
+			huh.NewGroup(
+				huh.NewMultiSelect[string]().
+					Title("Select keys to import").
+					Description(fmt.Sprintf("Found %d key(s) in %s", len(importable), filepath.Base(envFile))).
+					Options(options...).
+					Value(&selectedKeys),
+			),
+		)
+
+		if err := form.Run(); err != nil {
+			return fmt.Errorf("selection cancelled")
+		}
+	}
+
+	if len(selectedKeys) == 0 {
+		fmt.Println("No keys selected.")
+		return nil
+	}
+
+	// Build lookup for selected keys
+	selected := make(map[string]bool)
+	for _, k := range selectedKeys {
+		selected[k] = true
+	}
+
+	// Import selected keys
+	imported := 0
+	for _, c := range importable {
+		if !selected[c.key] {
+			continue
+		}
+
+		value := memguard.NewBufferFromBytes([]byte(c.value))
+		if err := vm.SetSecret(c.key, value); err != nil {
 			value.Destroy()
-			return fmt.Errorf("storing %s: %w", e.Key, err)
+			return fmt.Errorf("storing %s: %w", c.key, err)
 		}
 		value.Destroy()
 
-		fmt.Printf("  ✓ %s distilled into vault\n", e.Key)
+		status := "distilled"
+		if c.status == "changed" {
+			status = "updated"
+		}
+		fmt.Printf("  ✓ %s %s\n", c.key, status)
 		imported++
 	}
 
-	fmt.Println()
-	fmt.Printf("→ %d imported, %d skipped", imported, skipped)
-	if overwritten > 0 {
-		fmt.Printf(", %d overwritten", overwritten)
-	}
-	fmt.Println()
-
+	fmt.Printf("\n→ %d key(s) imported\n", imported)
 	return nil
 }
