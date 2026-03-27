@@ -25,7 +25,8 @@ install:
 
 TESTABLE_PKGS := ./internal/vault/... ./internal/parser/... ./internal/matcher/... \
 	./internal/alias/... ./internal/config/... ./internal/llm/... \
-	./internal/project/... ./internal/scanner/... ./internal/sync/...
+	./internal/project/... ./internal/scanner/... ./internal/sync/... \
+	./internal/cli/... ./internal/dashboard/...
 
 test:
 	go test -race $(TESTABLE_PKGS)

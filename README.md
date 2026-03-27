@@ -27,7 +27,7 @@ Then you rotate a key. Good luck updating all 30 projects.
 ## The Fix
 
 ```bash
-brew install vial    # one day
+brew install cheesejaguar/tap/vial    # use the tap; "brew install vial" is a different package
 go install github.com/cheesejaguar/vial/cmd/vial@latest
 
 vial init            # create your encrypted vault
@@ -143,7 +143,7 @@ vial sync pull --backend filesystem --remote ~/iCloud/vial/vault.json
 vial sync status --backend filesystem --remote ~/iCloud/vial/vault.json
 ```
 
-Supports filesystem sync (iCloud, Dropbox, any mounted path) and git-based sync.
+Supports filesystem sync (iCloud, Dropbox, any mounted path). Git-based sync is experimental.
 
 ---
 
@@ -167,7 +167,7 @@ Vial uses alchemical command names with standard aliases for the conventionally-
 | `vial shelf add/list/rm` | `project` | Manage project registry |
 | `vial label set/list/rm` | `alias` | Manage key aliases |
 | `vial dashboard` | | Launch web dashboard |
-| `vial sync push/pull/status` | | Sync vault to/from remote |
+| `vial sync push/pull/status` | | Sync vault to/from remote (filesystem; git is experimental) |
 | `vial completion bash/zsh/fish` | | Generate shell completions |
 
 ---
@@ -245,7 +245,7 @@ internal/
   config/                      → YAML config via Viper
   sync/                        → vault sync (filesystem, git)
 web/                           → SvelteKit dashboard SPA
-vscode/                        → VS Code extension scaffold
+vscode/                        → VS Code extension (coming soon)
 ```
 
 Single static binary. No runtime dependencies. ~9 MB with the embedded dashboard.

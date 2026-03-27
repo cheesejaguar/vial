@@ -3,10 +3,25 @@ package vault
 import (
 	"encoding/base64"
 	"fmt"
+	"regexp"
 	"time"
 
 	"github.com/awnumar/memguard"
 )
+
+var validKeyNameRe = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
+
+const maxKeyNameLength = 256
+
+// ValidateKeyName checks that name is a valid POSIX environment variable name
+// (letters, digits, underscore; must start with letter or underscore) and is
+// at most 256 characters long. It is exported for use in CLI code.
+func ValidateKeyName(name string) error {
+	if len(name) == 0 || len(name) > maxKeyNameLength || !validKeyNameRe.MatchString(name) {
+		return ErrInvalidKeyName
+	}
+	return nil
+}
 
 const minPasswordLength = 12
 
@@ -157,6 +172,9 @@ func (v *VaultManager) Lock() {
 
 // SetSecret encrypts and stores a secret value in the vault.
 func (v *VaultManager) SetSecret(key string, value *memguard.LockedBuffer) error {
+	if err := ValidateKeyName(key); err != nil {
+		return err
+	}
 	if !v.IsUnlocked() {
 		return ErrVaultLocked
 	}
@@ -345,13 +363,132 @@ func (v *VaultManager) DEKBytes() []byte {
 }
 
 // UnlockWithDEK sets the DEK directly (used when restoring from session cache).
+// It validates the DEK by attempting to decrypt an existing secret if one exists.
 func (v *VaultManager) UnlockWithDEK(dekBytes []byte) error {
-	// Verify the DEK works by trying to read the vault
-	if _, err := ReadVaultFile(v.path); err != nil {
+	vf, err := ReadVaultFile(v.path)
+	if err != nil {
 		return err
 	}
+
+	// If the vault has any encrypted keys, verify the DEK can actually decrypt one.
+	for _, entry := range vf.Keys {
+		ciphertext, err := base64.StdEncoding.DecodeString(entry.Value)
+		if err != nil {
+			return ErrInvalidDEK
+		}
+		nonce, err := base64.StdEncoding.DecodeString(entry.Nonce)
+		if err != nil {
+			return ErrInvalidDEK
+		}
+		tempDEK := memguard.NewBufferFromBytes(dekBytes)
+		_, decErr := DecryptAESGCM(tempDEK, ciphertext, nonce)
+		tempDEK.Destroy()
+		if decErr != nil {
+			return ErrInvalidDEK
+		}
+		break // only need to verify one entry
+	}
+
 	v.dek = memguard.NewBufferFromBytes(dekBytes)
 	return nil
+}
+
+// ChangePassword re-encrypts the DEK with a new master password.
+// It verifies the old password, validates the new one, generates a new salt,
+// and atomically updates the vault file.
+func (v *VaultManager) ChangePassword(oldPassword, newPassword *memguard.LockedBuffer) error {
+	if newPassword.Size() < minPasswordLength {
+		return ErrPasswordTooShort
+	}
+
+	// Read vault and verify old password by deriving KEK and decrypting DEK
+	vf, err := ReadVaultFile(v.path)
+	if err != nil {
+		return fmt.Errorf("change password: %w", err)
+	}
+
+	oldSalt, err := base64.StdEncoding.DecodeString(vf.KDF.Salt)
+	if err != nil {
+		return fmt.Errorf("change password: decoding salt: %w", err)
+	}
+
+	oldParams := KDFParams{
+		Algorithm:   vf.KDF.Algorithm,
+		Memory:      vf.KDF.Memory,
+		Iterations:  vf.KDF.Iterations,
+		Parallelism: vf.KDF.Parallelism,
+		Salt:        oldSalt,
+	}
+
+	oldKEK, err := DeriveKEK(oldPassword, oldParams)
+	if err != nil {
+		return fmt.Errorf("change password: %w", err)
+	}
+	defer oldKEK.Destroy()
+
+	encDEK, err := base64.StdEncoding.DecodeString(vf.DEK)
+	if err != nil {
+		return fmt.Errorf("change password: decoding DEK: %w", err)
+	}
+
+	dekNonce, err := base64.StdEncoding.DecodeString(vf.DEKNonce)
+	if err != nil {
+		return fmt.Errorf("change password: decoding DEK nonce: %w", err)
+	}
+
+	dekBytes, err := DecryptAESGCM(oldKEK, encDEK, dekNonce)
+	if err != nil {
+		return ErrWrongPassword
+	}
+
+	// Generate new salt and derive new KEK
+	newSalt, err := GenerateSalt()
+	if err != nil {
+		return fmt.Errorf("change password: %w", err)
+	}
+
+	newParams := DefaultKDFParams()
+	if v.kdfOverride != nil {
+		newParams = *v.kdfOverride
+	}
+	newParams.Salt = newSalt
+
+	newKEK, err := DeriveKEK(newPassword, newParams)
+	if err != nil {
+		return fmt.Errorf("change password: %w", err)
+	}
+	defer newKEK.Destroy()
+
+	// Re-encrypt the DEK with the new KEK
+	newEncDEK, newDEKNonce, err := EncryptAESGCM(newKEK, dekBytes)
+	if err != nil {
+		return fmt.Errorf("change password: encrypting DEK: %w", err)
+	}
+
+	// Atomically update the vault file
+	return WithFileLock(v.path, func() error {
+		vf, err := ReadVaultFile(v.path)
+		if err != nil {
+			return fmt.Errorf("change password: %w", err)
+		}
+
+		vf.KDF = KDFParamsJSON{
+			Algorithm:   newParams.Algorithm,
+			Memory:      newParams.Memory,
+			Iterations:  newParams.Iterations,
+			Parallelism: newParams.Parallelism,
+			Salt:        base64.StdEncoding.EncodeToString(newSalt),
+		}
+		vf.DEK = base64.StdEncoding.EncodeToString(newEncDEK)
+		vf.DEKNonce = base64.StdEncoding.EncodeToString(newDEKNonce)
+
+		if err := WriteVaultFile(v.path, vf); err != nil {
+			return fmt.Errorf("change password: %w", err)
+		}
+
+		v.params = newParams
+		return nil
+	})
 }
 
 // VaultKeyNames returns just the key names from the vault file.

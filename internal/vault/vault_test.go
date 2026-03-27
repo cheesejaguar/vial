@@ -2,6 +2,7 @@ package vault
 
 import (
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/awnumar/memguard"
@@ -266,6 +267,134 @@ func TestVaultGetSetMetadata(t *testing.T) {
 	}
 	if got.Provider != "openai" {
 		t.Errorf("provider = %q, want openai", got.Provider)
+	}
+}
+
+func TestUnlockWithDEK_GarbageBytesRejected(t *testing.T) {
+	vm := newTestVault(t)
+	defer vm.Lock()
+
+	// Store a secret so the vault has encrypted data
+	secret := memguard.NewBufferFromBytes([]byte("super-secret-value"))
+	defer secret.Destroy()
+	if err := vm.SetSecret("TEST_KEY", secret); err != nil {
+		t.Fatalf("SetSecret: %v", err)
+	}
+
+	// Lock the vault, then try to unlock with garbage DEK bytes
+	vm.Lock()
+
+	garbageDEK := []byte("this-is-32-bytes-of-garbage!!!!!")
+	err := vm.UnlockWithDEK(garbageDEK)
+	if err != ErrInvalidDEK {
+		t.Errorf("expected ErrInvalidDEK, got %v", err)
+	}
+	if vm.IsUnlocked() {
+		t.Error("vault should remain locked after failed UnlockWithDEK")
+	}
+}
+
+func TestValidateKeyName(t *testing.T) {
+	tests := []struct {
+		name    string
+		key     string
+		wantErr bool
+	}{
+		// Valid names
+		{"simple uppercase", "API_KEY", false},
+		{"simple lowercase", "api_key", false},
+		{"mixed case", "MyKey_01", false},
+		{"single letter", "X", false},
+		{"underscore prefix", "_PRIVATE", false},
+		{"just underscore", "_", false},
+		{"max length", strings.Repeat("A", 256), false},
+
+		// Invalid names
+		{"empty string", "", true},
+		{"starts with digit", "1KEY", true},
+		{"contains space", "MY KEY", true},
+		{"contains dash", "MY-KEY", true},
+		{"contains dot", "my.key", true},
+		{"contains equals", "KEY=VAL", true},
+		{"contains slash", "path/key", true},
+		{"too long", strings.Repeat("A", 257), true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateKeyName(tt.key)
+			if tt.wantErr && err != ErrInvalidKeyName {
+				t.Errorf("ValidateKeyName(%q) = %v, want ErrInvalidKeyName", tt.key, err)
+			}
+			if !tt.wantErr && err != nil {
+				t.Errorf("ValidateKeyName(%q) = %v, want nil", tt.key, err)
+			}
+		})
+	}
+}
+
+func TestChangePassword(t *testing.T) {
+	vm := newTestVault(t)
+	defer vm.Lock()
+
+	// Store a secret before changing password
+	secret := memguard.NewBufferFromBytes([]byte("my-secret-value"))
+	defer secret.Destroy()
+	if err := vm.SetSecret("TEST_KEY", secret); err != nil {
+		t.Fatalf("SetSecret: %v", err)
+	}
+
+	oldPw := memguard.NewBufferFromBytes([]byte("test-password-12chars"))
+	defer oldPw.Destroy()
+	newPw := memguard.NewBufferFromBytes([]byte("new-password-12chars!"))
+	defer newPw.Destroy()
+
+	if err := vm.ChangePassword(oldPw, newPw); err != nil {
+		t.Fatalf("ChangePassword: %v", err)
+	}
+
+	// Lock and unlock with new password should succeed
+	vm.Lock()
+
+	newPw2 := memguard.NewBufferFromBytes([]byte("new-password-12chars!"))
+	defer newPw2.Destroy()
+	if err := vm.Unlock(newPw2); err != nil {
+		t.Fatalf("Unlock with new password: %v", err)
+	}
+
+	// Verify the stored secret is still accessible
+	got, err := vm.GetSecret("TEST_KEY")
+	if err != nil {
+		t.Fatalf("GetSecret after password change: %v", err)
+	}
+	defer got.Destroy()
+	if string(got.Bytes()) != "my-secret-value" {
+		t.Errorf("got %q, want %q", got.Bytes(), "my-secret-value")
+	}
+
+	// Lock and try old password — should fail
+	vm.Lock()
+
+	oldPw2 := memguard.NewBufferFromBytes([]byte("test-password-12chars"))
+	defer oldPw2.Destroy()
+	err = vm.Unlock(oldPw2)
+	if err != ErrWrongPassword {
+		t.Errorf("Unlock with old password: expected ErrWrongPassword, got %v", err)
+	}
+}
+
+func TestSetSecretRejectsInvalidKeyName(t *testing.T) {
+	vm := newTestVault(t)
+	defer vm.Lock()
+
+	val := memguard.NewBufferFromBytes([]byte("value"))
+	defer val.Destroy()
+
+	invalidKeys := []string{"", "1BAD", "has space", "has-dash"}
+	for _, key := range invalidKeys {
+		if err := vm.SetSecret(key, val); err != ErrInvalidKeyName {
+			t.Errorf("SetSecret(%q) = %v, want ErrInvalidKeyName", key, err)
+		}
 	}
 }
 

@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -57,6 +58,9 @@ func openVault() (*vault.VaultManager, error) {
 func requireUnlockedVault() (*vault.VaultManager, error) {
 	vm, err := openVault()
 	if err != nil {
+		if errors.Is(err, vault.ErrVaultNotFound) {
+			return nil, fmt.Errorf("no vault found — run 'vial init' to create one")
+		}
 		return nil, err
 	}
 
@@ -70,6 +74,9 @@ func requireUnlockedVault() (*vault.VaultManager, error) {
 		defer password.Destroy()
 
 		if err := vm.Unlock(password); err != nil {
+			if errors.Is(err, vault.ErrVaultNotFound) {
+				return nil, fmt.Errorf("no vault found at %s — run 'vial init' to create one", cfg.VaultPath)
+			}
 			return nil, fmt.Errorf("VIAL_MASTER_KEY unlock failed: %w", err)
 		}
 
@@ -89,6 +96,9 @@ func requireUnlockedVault() (*vault.VaultManager, error) {
 	defer password.Destroy()
 
 	if err := vm.Unlock(password); err != nil {
+		if errors.Is(err, vault.ErrVaultNotFound) {
+			return nil, fmt.Errorf("no vault found at %s — run 'vial init' to create one", cfg.VaultPath)
+		}
 		return nil, err
 	}
 

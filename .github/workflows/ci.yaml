@@ -29,7 +29,9 @@ jobs:
                         ./internal/llm/... \
                         ./internal/project/... \
                         ./internal/scanner/... \
-                        ./internal/sync/...
+                        ./internal/sync/... \
+                        ./internal/cli/... \
+                        ./internal/dashboard/...
 
       - name: Build
         run: go build -o /dev/null ./cmd/vial

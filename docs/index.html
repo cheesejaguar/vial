@@ -508,6 +508,34 @@ h2 em { font-style: italic; color: var(--gold); }
   transition: all 0.2s;
 }
 .install-box .copy-btn:hover { border-color: var(--text-muted); color: var(--text-bright); }
+.install-tabs {
+  display: inline-flex;
+  gap: 0;
+  margin-bottom: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.install-tab {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-family: var(--mono);
+  font-size: 0.82rem;
+  padding: 0.45rem 1.2rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.install-tab:not(:last-child) {
+  border-right: 1px solid var(--border);
+}
+.install-tab.active {
+  background: var(--accent);
+  color: var(--bg);
+}
+.install-tab:hover:not(.active) {
+  color: var(--text-bright);
+}
 .install-alt {
   font-size: 0.88rem;
   color: var(--text-muted);
@@ -787,8 +815,12 @@ footer {
     <h2 class="reveal">One install. <em>Zero dependencies.</em></h2>
     <p class="section-desc reveal" style="margin-left:auto;margin-right:auto;text-align:center;">Single static binary. ~9 MB. macOS and Linux, arm64 and amd64.</p>
 
+    <div class="install-tabs reveal">
+      <button class="install-tab active" onclick="switchInstall('brew')">Homebrew</button>
+      <button class="install-tab" onclick="switchInstall('go')">Go</button>
+    </div>
     <div class="install-box reveal">
-      <code id="install-cmd">go install github.com/cheesejaguar/vial/cmd/vial@latest</code>
+      <code id="install-cmd">brew install cheesejaguar/tap/vial</code>
       <button class="copy-btn" onclick="copyInstall()">Copy</button>
     </div>
     <p class="install-alt reveal">
@@ -835,6 +867,17 @@ const observer = new IntersectionObserver((entries) => {
 }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
 
 document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+// Install tab switching
+const installCommands = {
+  brew: 'brew install cheesejaguar/tap/vial',
+  go: 'go install github.com/cheesejaguar/vial/cmd/vial@latest'
+};
+function switchInstall(method) {
+  document.getElementById('install-cmd').textContent = installCommands[method];
+  document.querySelectorAll('.install-tab').forEach(t => t.classList.remove('active'));
+  document.querySelector(`.install-tab[onclick="switchInstall('${method}')"]`).classList.add('active');
+}
 
 // Copy button
 function copyInstall() {

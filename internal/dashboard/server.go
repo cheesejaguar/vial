@@ -2,6 +2,7 @@ package dashboard
 
 import (
 	"crypto/rand"
+	"crypto/subtle"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -81,8 +82,49 @@ func (s *Server) Start() error {
 		return fmt.Errorf("listening on %s: %w", addr, err)
 	}
 
+	handler := s.corsHostMiddleware(mux)
+
 	s.logger.Info("Dashboard running", "url", fmt.Sprintf("http://%s", addr))
-	return http.Serve(listener, mux)
+	return http.Serve(listener, handler)
+}
+
+// corsHostMiddleware validates the Host header and sets CORS headers to
+// protect against DNS rebinding and cross-origin attacks.
+func (s *Server) corsHostMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		portStr := fmt.Sprintf("%d", s.port)
+		allowedHosts := []string{
+			"127.0.0.1:" + portStr,
+			"localhost:" + portStr,
+		}
+
+		host := r.Host
+		hostValid := false
+		for _, h := range allowedHosts {
+			if host == h {
+				hostValid = true
+				break
+			}
+		}
+		if !hostValid {
+			http.Error(w, "forbidden", http.StatusForbidden)
+			return
+		}
+
+		origin := fmt.Sprintf("http://127.0.0.1:%d", s.port)
+		w.Header().Set("Access-Control-Allow-Origin", origin)
+		w.Header().Set("Vary", "Origin")
+
+		if r.Method == http.MethodOptions {
+			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
+			w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type")
+			w.Header().Set("Access-Control-Max-Age", "86400")
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
 }
 
 // authMiddleware validates the session token.
@@ -94,7 +136,7 @@ func (s *Server) authMiddleware(next http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 		token := strings.TrimPrefix(auth, "Bearer ")
-		if token != s.token {
+		if subtle.ConstantTimeCompare([]byte(token), []byte(s.token)) != 1 {
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
 			return
 		}
