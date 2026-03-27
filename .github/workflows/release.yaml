@@ -27,8 +27,13 @@ jobs:
       - name: Build Dashboard
         run: |
           cd web && npm ci && npm run build
-          rm -rf ../internal/dashboard/static
-          cp -r build ../internal/dashboard/static
+          rm -f ../internal/dashboard/static/index.html
+          cp -r build/* ../internal/dashboard/static/
+          cd ..
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git add -f internal/dashboard/static/
+          git commit -m "ci: build dashboard assets [skip ci]" --allow-empty
 
       - uses: goreleaser/goreleaser-action@v6
         with:
