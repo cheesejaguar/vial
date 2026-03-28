@@ -1,0 +1,48 @@
+version: "2"
+
+run:
+  timeout: 3m
+
+formatters:
+  enable:
+    - gofmt
+
+linters:
+  default: none
+  enable:
+    - govet
+    - staticcheck
+    - unused
+    - ineffassign
+    - gocritic
+    - misspell
+
+  settings:
+    gocritic:
+      enabled-tags:
+        - diagnostic
+        - performance
+      disabled-checks:
+        - appendCombine
+        - ifElseChain
+        - hugeParam
+        - rangeValCopy
+        - exitAfterDefer
+        - assignOp
+        - stringXbytes
+    staticcheck:
+      checks:
+        - "all"
+        - "-ST1000"
+        - "-ST1005"
+        - "-QF*"
+        - "-S1011"
+
+issues:
+  exclude-dirs:
+    - vendor
+    - web
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - gocritic

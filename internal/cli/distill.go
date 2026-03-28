@@ -38,8 +38,8 @@ func init() {
 }
 
 type distillCandidate struct {
-	key   string
-	value string
+	key    string
+	value  string
 	status string // "new", "changed", "same"
 }
 

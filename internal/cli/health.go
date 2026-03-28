@@ -179,21 +179,6 @@ func handleSetRotation(vm *vault.VaultManager, spec string) error {
 	return nil
 }
 
-func statusIcon(status string) string {
-	switch status {
-	case "ok":
-		return "✓"
-	case "warning":
-		return "●"
-	case "danger":
-		return "✗"
-	case "overdue":
-		return "⚠"
-	default:
-		return " "
-	}
-}
-
 func styledStatusIcon(status string) string {
 	switch status {
 	case "ok":

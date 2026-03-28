@@ -22,7 +22,7 @@ func (m *mockProvider) Complete(_ context.Context, _ llm.CompletionRequest) (*ll
 	return &llm.CompletionResponse{Content: m.response}, nil
 }
 
-func (m *mockProvider) Name() string   { return "mock" }
+func (m *mockProvider) Name() string    { return "mock" }
 func (m *mockProvider) Available() bool { return true }
 
 func TestLLMMatcherSuccess(t *testing.T) {

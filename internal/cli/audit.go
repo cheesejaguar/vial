@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/spf13/cobra"
 
@@ -30,8 +29,8 @@ Examples:
 }
 
 var (
-	auditLimit  int
-	auditCSV    bool
+	auditLimit int
+	auditCSV   bool
 )
 
 func init() {
@@ -146,14 +145,4 @@ func recordAudit(event audit.EventType, keys []string, project, detail string) {
 	if err := log.Record(event, keys, project, detail); err != nil {
 		logger.Debug("audit log write failed", "err", err)
 	}
-}
-
-// recordAuditTimestamp records an event with current time formatting.
-func recordAuditTimestamp(event audit.EventType, detail string) {
-	recordAudit(event, nil, "", detail)
-}
-
-func init() {
-	// Ensure audit log timestamp is valid on startup
-	_ = time.Now()
 }

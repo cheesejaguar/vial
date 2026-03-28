@@ -45,7 +45,7 @@ func isTTY() bool {
 }
 
 // styled renders text with a lipgloss style, falling back to plain text for non-TTY.
-func styled(style lipgloss.Style, text string) string {
+func styled(style lipgloss.Style, text string) string { //nolint:gocritic // lipgloss.Style is a value type by design
 	if !isTTY() {
 		return text
 	}
@@ -54,25 +54,25 @@ func styled(style lipgloss.Style, text string) string {
 
 // --- Semantic helpers ---
 
-func successIcon() string  { return styled(styleSuccess, "✓") }
-func errorIcon() string    { return styled(styleError, "✗") }
-func warningIcon() string  { return styled(styleWarning, "⚠") }
-func skipIcon() string     { return styled(styleDim, "⊘") }
-func arrowIcon() string    { return styled(styleArrow, "→") }
-func agingIcon() string    { return styled(styleWarning, "●") }
+func successIcon() string { return styled(styleSuccess, "✓") }
+func errorIcon() string   { return styled(styleError, "✗") }
+func warningIcon() string { return styled(styleWarning, "⚠") }
+func skipIcon() string    { return styled(styleDim, "⊘") }
+func arrowIcon() string   { return styled(styleArrow, "→") }
+func agingIcon() string   { return styled(styleWarning, "●") }
 
 func successMsg(msg string) string { return styled(styleSuccess, "✓ "+msg) }
 func errorMsg(msg string) string   { return styled(styleError, "✗ "+msg) }
 func warningMsg(msg string) string { return styled(styleWarning, "⚠ "+msg) }
 
-func keyName(name string) string     { return styled(styleKey, name) }
-func mutedText(text string) string   { return styled(styleMuted, text) }
-func dimText(text string) string     { return styled(styleDim, text) }
-func headerText(text string) string  { return styled(styleHeader, text) }
-func boldText(text string) string    { return styled(styleBold, text) }
-func badgeText(text string) string   { return styled(styleBadge, text) }
-func countText(text string) string   { return styled(styleCount, text) }
-func urlText(text string) string     { return styled(styleURL, text) }
+func keyName(name string) string    { return styled(styleKey, name) }
+func mutedText(text string) string  { return styled(styleMuted, text) }
+func dimText(text string) string    { return styled(styleDim, text) }
+func headerText(text string) string { return styled(styleHeader, text) }
+func boldText(text string) string   { return styled(styleBold, text) }
+func badgeText(text string) string  { return styled(styleBadge, text) }
+func countText(text string) string  { return styled(styleCount, text) }
+func urlText(text string) string    { return styled(styleURL, text) }
 
 // banner renders the Vial ASCII art logo.
 func banner() string {

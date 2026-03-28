@@ -8,7 +8,7 @@
 
 	onMount(async () => {
 		try {
-			aliases = await fetchAliases() || [];
+			aliases = (await fetchAliases()) || [];
 		} catch (e) {
 			error = e.message;
 		} finally {
@@ -20,7 +20,9 @@
 <div class="page">
 	<div class="page-header animate-in">
 		<h1>🏷️ Aliases</h1>
-		<p class="description">Alias mappings allow variant key names to resolve to the same vault secret.</p>
+		<p class="description">
+			Alias mappings allow variant key names to resolve to the same vault secret.
+		</p>
 	</div>
 
 	{#if loading}
@@ -51,11 +53,25 @@
 </div>
 
 <style>
-	.page { max-width: 700px; }
-	.page-header { margin-bottom: 1.5rem; }
-	h1 { color: var(--purple-light); margin-bottom: 0.5rem; }
-	.description { color: var(--text-muted); font-size: 0.9rem; }
-	.alias-list { display: flex; flex-direction: column; gap: 0.5rem; }
+	.page {
+		max-width: 700px;
+	}
+	.page-header {
+		margin-bottom: 1.5rem;
+	}
+	h1 {
+		color: var(--purple-light);
+		margin-bottom: 0.5rem;
+	}
+	.description {
+		color: var(--text-muted);
+		font-size: 0.9rem;
+	}
+	.alias-list {
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+	}
 	.alias-row {
 		background: var(--bg-card);
 		border: 1px solid var(--border);
@@ -65,7 +81,9 @@
 		align-items: center;
 		gap: 0.75rem;
 	}
-	.alias-from { color: var(--text-muted); }
+	.alias-from {
+		color: var(--text-muted);
+	}
 	.arrow {
 		color: var(--gold);
 		font-size: 1.1rem;
@@ -75,10 +93,22 @@
 		transform: translateX(3px);
 		color: var(--gold-light);
 	}
-	.alias-to { color: var(--gold); }
-	.count { color: var(--text-muted); font-size: 0.85rem; margin-top: 1rem; }
-	.status { color: var(--text-muted); padding: 2rem; text-align: center; }
-	.error { color: var(--danger); }
+	.alias-to {
+		color: var(--gold);
+	}
+	.count {
+		color: var(--text-muted);
+		font-size: 0.85rem;
+		margin-top: 1rem;
+	}
+	.status {
+		color: var(--text-muted);
+		padding: 2rem;
+		text-align: center;
+	}
+	.error {
+		color: var(--danger);
+	}
 
 	/* Empty state */
 	.empty-state {
@@ -89,9 +119,21 @@
 		padding: 4rem 2rem;
 		text-align: center;
 	}
-	.empty-icon { font-size: 3rem; margin-bottom: 1rem; opacity: 0.7; }
-	.empty-text { color: var(--text-muted); font-size: 1.1rem; margin-bottom: 0.5rem; }
-	.empty-hint { color: var(--text-muted); font-size: 0.85rem; opacity: 0.7; }
+	.empty-icon {
+		font-size: 3rem;
+		margin-bottom: 1rem;
+		opacity: 0.7;
+	}
+	.empty-text {
+		color: var(--text-muted);
+		font-size: 1.1rem;
+		margin-bottom: 0.5rem;
+	}
+	.empty-hint {
+		color: var(--text-muted);
+		font-size: 0.85rem;
+		opacity: 0.7;
+	}
 	.empty-hint code {
 		background: var(--bg-hover);
 		padding: 0.15rem 0.4rem;

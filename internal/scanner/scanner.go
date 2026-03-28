@@ -19,9 +19,9 @@ type EnvVarRef struct {
 
 // ScanResult holds all env var references found in a project.
 type ScanResult struct {
-	Refs     []EnvVarRef
-	Files    int
-	Scanned  int
+	Refs    []EnvVarRef
+	Files   int
+	Scanned int
 }
 
 // langPattern defines a language-specific env var access pattern.

@@ -23,10 +23,7 @@ build-quick:
 install:
 	go install -ldflags "$(LDFLAGS)" ./cmd/vial
 
-TESTABLE_PKGS := ./internal/vault/... ./internal/parser/... ./internal/matcher/... \
-	./internal/alias/... ./internal/config/... ./internal/llm/... \
-	./internal/project/... ./internal/scanner/... ./internal/sync/... \
-	./internal/cli/... ./internal/dashboard/...
+TESTABLE_PKGS := ./internal/...
 
 test:
 	go test -race $(TESTABLE_PKGS)

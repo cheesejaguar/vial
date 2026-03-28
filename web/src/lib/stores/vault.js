@@ -10,19 +10,19 @@ export const filteredSecrets = derived(
 		let result = $secrets;
 		if ($query) {
 			const q = $query.toLowerCase();
-			result = result.filter(s => s.key.toLowerCase().includes(q));
+			result = result.filter((s) => s.key.toLowerCase().includes(q));
 		}
 		if ($tag) {
-			result = result.filter(s => s.tags && s.tags.includes($tag));
+			result = result.filter((s) => s.tags && s.tags.includes($tag));
 		}
 		return result;
-	}
+	},
 );
 
 export const allTags = derived(secrets, ($secrets) => {
 	const tags = new Set();
-	$secrets.forEach(s => {
-		if (s.tags) s.tags.forEach(t => tags.add(t));
+	$secrets.forEach((s) => {
+		if (s.tags) s.tags.forEach((t) => tags.add(t));
 	});
 	return [...tags].sort();
 });

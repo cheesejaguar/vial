@@ -25,10 +25,7 @@
 		<ul class="nav-links">
 			{#each navItems as item}
 				<li>
-					<a
-						href={item.href}
-						class:active={isActive(item.href, $page.url.pathname)}
-					>
+					<a href={item.href} class:active={isActive(item.href, $page.url.pathname)}>
 						<span class="nav-icon">{item.icon}</span>
 						<span class="nav-label">{item.label}</span>
 					</a>

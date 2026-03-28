@@ -27,10 +27,10 @@ const minPasswordLength = 12
 
 // VaultManager implements the Vault interface.
 type VaultManager struct {
-	path      string
-	dek       *memguard.LockedBuffer // nil when locked
-	params    KDFParams              // cached from vault file
-	kdfOverride *KDFParams           // if set, used instead of DefaultKDFParams (for tests)
+	path        string
+	dek         *memguard.LockedBuffer // nil when locked
+	params      KDFParams              // cached from vault file
+	kdfOverride *KDFParams             // if set, used instead of DefaultKDFParams (for tests)
 }
 
 // NewVaultManager creates a new VaultManager for the vault at the given path.
@@ -43,9 +43,9 @@ func (v *VaultManager) SetKDFParams(params KDFParams) {
 	v.kdfOverride = &params
 }
 
-func (v *VaultManager) Path() string      { return v.path }
-func (v *VaultManager) IsUnlocked() bool  { return v.dek != nil }
-func (v *VaultManager) Version() int      { return 1 }
+func (v *VaultManager) Path() string     { return v.path }
+func (v *VaultManager) IsUnlocked() bool { return v.dek != nil }
+func (v *VaultManager) Version() int     { return 1 }
 
 // Init creates a new vault file encrypted with the given master password.
 func (v *VaultManager) Init(password *memguard.LockedBuffer) error {
@@ -211,7 +211,7 @@ func (v *VaultManager) SetSecret(key string, value *memguard.LockedBuffer) error
 			entry.Aliases = existing.Aliases
 			entry.Provider = existing.Provider
 			entry.Tags = existing.Tags
-			entry.Added = existing.Added         // keep original add time
+			entry.Added = existing.Added               // keep original add time
 			entry.RotationDays = existing.RotationDays // keep rotation policy
 		}
 

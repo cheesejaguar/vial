@@ -1,7 +1,13 @@
 <script>
 	import { onMount } from 'svelte';
 	import { fetchSecrets, deleteSecret } from '$lib/api.js';
-	import { secrets, searchQuery, filteredSecrets, allTags, activeTagFilter } from '$lib/stores/vault.js';
+	import {
+		secrets,
+		searchQuery,
+		filteredSecrets,
+		allTags,
+		activeTagFilter,
+	} from '$lib/stores/vault.js';
 
 	let loading = $state(true);
 	let error = $state(null);
@@ -26,7 +32,7 @@
 		if (!confirm(`Delete "${key}" from vault?`)) return;
 		try {
 			await deleteSecret(key);
-			secrets.update(s => s.filter(sec => sec.key !== key));
+			secrets.update((s) => s.filter((sec) => sec.key !== key));
 		} catch (e) {
 			error = e.message;
 		}
@@ -38,11 +44,7 @@
 		<h1>🔑 Secrets</h1>
 		<div class="search">
 			<span class="search-icon">🔍</span>
-			<input
-				type="text"
-				placeholder="Search keys..."
-				bind:value={$searchQuery}
-			/>
+			<input type="text" placeholder="Search keys..." bind:value={$searchQuery} />
 		</div>
 	</div>
 
@@ -51,14 +53,14 @@
 			<button
 				class="tag"
 				class:active={$activeTagFilter === null}
-				onclick={() => activeTagFilter.set(null)}
-			>All</button>
+				onclick={() => activeTagFilter.set(null)}>All</button
+			>
 			{#each $allTags as tag}
 				<button
 					class="tag"
 					class:active={$activeTagFilter === tag}
-					onclick={() => activeTagFilter.set(tag)}
-				>{tag}</button>
+					onclick={() => activeTagFilter.set(tag)}>{tag}</button
+				>
 			{/each}
 		</div>
 	{/if}
@@ -111,7 +113,9 @@
 </div>
 
 <style>
-	.page { max-width: 900px; }
+	.page {
+		max-width: 900px;
+	}
 	.header {
 		display: flex;
 		justify-content: space-between;
@@ -119,7 +123,10 @@
 		margin-bottom: 1.5rem;
 		animation: slideUp 0.4s ease;
 	}
-	h1 { font-size: 1.5rem; color: var(--purple-light); }
+	h1 {
+		font-size: 1.5rem;
+		color: var(--purple-light);
+	}
 	.search {
 		position: relative;
 		display: flex;
@@ -174,17 +181,36 @@
 		border-color: var(--purple);
 		box-shadow: var(--glow-purple);
 	}
-	.secret-list { display: flex; flex-direction: column; gap: 0.75rem; }
+	.secret-list {
+		display: flex;
+		flex-direction: column;
+		gap: 0.75rem;
+	}
 	.secret-card {
 		background: var(--bg-card);
 		border: 1px solid var(--border);
 		border-radius: 10px;
 		padding: 1rem 1.25rem;
 	}
-	.secret-header { display: flex; justify-content: space-between; align-items: center; }
-	.secret-key { font-size: 0.95rem; color: var(--gold); }
-	.secret-meta { margin-top: 0.5rem; display: flex; gap: 1rem; flex-wrap: wrap; }
-	.meta-item { font-size: 0.8rem; color: var(--text-muted); }
+	.secret-header {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+	}
+	.secret-key {
+		font-size: 0.95rem;
+		color: var(--gold);
+	}
+	.secret-meta {
+		margin-top: 0.5rem;
+		display: flex;
+		gap: 1rem;
+		flex-wrap: wrap;
+	}
+	.meta-item {
+		font-size: 0.8rem;
+		color: var(--text-muted);
+	}
 	.badge {
 		background: var(--purple-dark);
 		color: var(--purple-light);
@@ -211,9 +237,19 @@
 		color: var(--bg);
 		box-shadow: var(--glow-danger);
 	}
-	.status { color: var(--text-muted); padding: 2rem; text-align: center; }
-	.error { color: var(--danger); }
-	.count { color: var(--text-muted); font-size: 0.85rem; margin-top: 1rem; }
+	.status {
+		color: var(--text-muted);
+		padding: 2rem;
+		text-align: center;
+	}
+	.error {
+		color: var(--danger);
+	}
+	.count {
+		color: var(--text-muted);
+		font-size: 0.85rem;
+		margin-top: 1rem;
+	}
 
 	/* Empty state */
 	.empty-state {
@@ -224,9 +260,21 @@
 		padding: 4rem 2rem;
 		text-align: center;
 	}
-	.empty-icon { font-size: 3rem; margin-bottom: 1rem; opacity: 0.7; }
-	.empty-text { color: var(--text-muted); font-size: 1.1rem; margin-bottom: 0.5rem; }
-	.empty-hint { color: var(--text-muted); font-size: 0.85rem; opacity: 0.7; }
+	.empty-icon {
+		font-size: 3rem;
+		margin-bottom: 1rem;
+		opacity: 0.7;
+	}
+	.empty-text {
+		color: var(--text-muted);
+		font-size: 1.1rem;
+		margin-bottom: 0.5rem;
+	}
+	.empty-hint {
+		color: var(--text-muted);
+		font-size: 0.85rem;
+		opacity: 0.7;
+	}
 	.empty-hint code {
 		background: var(--bg-hover);
 		padding: 0.15rem 0.4rem;

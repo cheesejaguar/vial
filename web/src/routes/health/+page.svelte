@@ -69,7 +69,10 @@
 						<span class="age-indicator">{ageEmoji(s.age_days)}</span>
 						<span class="mono key">{s.key}</span>
 						<div class="age-bar-wrapper">
-							<div class="age-bar {ageClass(s.age_days)}" style="width: {Math.min(s.age_days / 180 * 100, 100)}%"></div>
+							<div
+								class="age-bar {ageClass(s.age_days)}"
+								style="width: {Math.min((s.age_days / 180) * 100, 100)}%"
+							></div>
 						</div>
 						<span class="age {ageClass(s.age_days)}">{s.age_days}d</span>
 						{#if s.last_rotated}
@@ -83,12 +86,31 @@
 </div>
 
 <style>
-	.page { max-width: 850px; }
-	.page-header { margin-bottom: 1.5rem; }
-	h1 { color: var(--purple-light); margin-bottom: 0.5rem; }
-	h2 { color: var(--text); margin: 1.5rem 0 1rem; font-size: 1.1rem; }
-	.description { color: var(--text-muted); font-size: 0.9rem; }
-	.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 2rem; }
+	.page {
+		max-width: 850px;
+	}
+	.page-header {
+		margin-bottom: 1.5rem;
+	}
+	h1 {
+		color: var(--purple-light);
+		margin-bottom: 0.5rem;
+	}
+	h2 {
+		color: var(--text);
+		margin: 1.5rem 0 1rem;
+		font-size: 1.1rem;
+	}
+	.description {
+		color: var(--text-muted);
+		font-size: 0.9rem;
+	}
+	.stats {
+		display: grid;
+		grid-template-columns: repeat(3, 1fr);
+		gap: 1rem;
+		margin-bottom: 2rem;
+	}
 	.stat-card {
 		background: var(--bg-card);
 		border: 1px solid var(--border);
@@ -108,11 +130,28 @@
 	.stat-warning:hover {
 		box-shadow: 0 0 20px rgba(246, 173, 85, 0.2);
 	}
-	.stat-icon { font-size: 1.5rem; margin-bottom: 0.5rem; }
-	.stat-value { font-size: 2rem; font-weight: 700; color: var(--purple-light); }
-	.stat-value.warning { color: var(--warning); }
-	.stat-label { color: var(--text-muted); font-size: 0.85rem; margin-top: 0.25rem; }
-	.health-list { display: flex; flex-direction: column; gap: 0.5rem; }
+	.stat-icon {
+		font-size: 1.5rem;
+		margin-bottom: 0.5rem;
+	}
+	.stat-value {
+		font-size: 2rem;
+		font-weight: 700;
+		color: var(--purple-light);
+	}
+	.stat-value.warning {
+		color: var(--warning);
+	}
+	.stat-label {
+		color: var(--text-muted);
+		font-size: 0.85rem;
+		margin-top: 0.25rem;
+	}
+	.health-list {
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+	}
 	.health-row {
 		background: var(--bg-card);
 		border: 1px solid var(--border);
@@ -122,8 +161,14 @@
 		align-items: center;
 		gap: 0.75rem;
 	}
-	.age-indicator { font-size: 0.85rem; }
-	.key { color: var(--gold); flex: 1; font-size: 0.9rem; }
+	.age-indicator {
+		font-size: 0.85rem;
+	}
+	.key {
+		color: var(--gold);
+		flex: 1;
+		font-size: 0.9rem;
+	}
 	.age-bar-wrapper {
 		width: 80px;
 		height: 4px;
@@ -136,14 +181,41 @@
 		border-radius: 2px;
 		transition: width 0.6s ease;
 	}
-	.age-bar.ok { background: var(--success); }
-	.age-bar.warning { background: var(--warning); }
-	.age-bar.danger { background: var(--danger); }
-	.age { font-size: 0.85rem; padding: 0.15rem 0.5rem; border-radius: 4px; min-width: 45px; text-align: right; }
-	.age.ok { color: var(--success); }
-	.age.warning { color: var(--warning); }
-	.age.danger { color: var(--danger); }
-	.rotated { color: var(--text-muted); font-size: 0.78rem; }
-	.status { color: var(--text-muted); padding: 2rem; text-align: center; }
-	.error { color: var(--danger); }
+	.age-bar.ok {
+		background: var(--success);
+	}
+	.age-bar.warning {
+		background: var(--warning);
+	}
+	.age-bar.danger {
+		background: var(--danger);
+	}
+	.age {
+		font-size: 0.85rem;
+		padding: 0.15rem 0.5rem;
+		border-radius: 4px;
+		min-width: 45px;
+		text-align: right;
+	}
+	.age.ok {
+		color: var(--success);
+	}
+	.age.warning {
+		color: var(--warning);
+	}
+	.age.danger {
+		color: var(--danger);
+	}
+	.rotated {
+		color: var(--text-muted);
+		font-size: 0.78rem;
+	}
+	.status {
+		color: var(--text-muted);
+		padding: 2rem;
+		text-align: center;
+	}
+	.error {
+		color: var(--danger);
+	}
 </style>

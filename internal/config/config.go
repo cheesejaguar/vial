@@ -11,11 +11,11 @@ import (
 
 // Config holds all application configuration.
 type Config struct {
-	VaultPath       string        `mapstructure:"vault_path"`
-	SessionTimeout  time.Duration `mapstructure:"session_timeout"`
-	EnvExample      string        `mapstructure:"env_example"`
-	LogLevel        string        `mapstructure:"log_level"`
-	MinPasswordLen  int           `mapstructure:"min_password_length"`
+	VaultPath      string        `mapstructure:"vault_path"`
+	SessionTimeout time.Duration `mapstructure:"session_timeout"`
+	EnvExample     string        `mapstructure:"env_example"`
+	LogLevel       string        `mapstructure:"log_level"`
+	MinPasswordLen int           `mapstructure:"min_password_length"`
 }
 
 // DefaultConfig returns the configuration with all defaults applied.

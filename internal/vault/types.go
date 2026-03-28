@@ -8,13 +8,13 @@ import (
 
 // VaultFile is the on-disk JSON representation of the vault.
 type VaultFile struct {
-	Version  int                    `json:"version"`
-	KDF      KDFParamsJSON          `json:"kdf"`
-	DEK      string                 `json:"dek"`       // base64-encoded encrypted DEK
-	DEKNonce string                 `json:"dek_nonce"` // base64-encoded nonce for DEK encryption
-	Keys     map[string]SecretEntry `json:"keys"`
-	AliasRules []AliasRule          `json:"alias_rules"`
-	Projects   []ProjectRef         `json:"projects"`
+	Version    int                    `json:"version"`
+	KDF        KDFParamsJSON          `json:"kdf"`
+	DEK        string                 `json:"dek"`       // base64-encoded encrypted DEK
+	DEKNonce   string                 `json:"dek_nonce"` // base64-encoded nonce for DEK encryption
+	Keys       map[string]SecretEntry `json:"keys"`
+	AliasRules []AliasRule            `json:"alias_rules"`
+	Projects   []ProjectRef           `json:"projects"`
 }
 
 // KDFParamsJSON is the JSON-serializable form of KDFParams.
@@ -28,8 +28,8 @@ type KDFParamsJSON struct {
 
 // SecretEntry is a single encrypted secret in the vault file.
 type SecretEntry struct {
-	Value        string   `json:"value"`                  // base64-encoded encrypted value
-	Nonce        string   `json:"nonce"`                  // base64-encoded GCM nonce
+	Value        string   `json:"value"` // base64-encoded encrypted value
+	Nonce        string   `json:"nonce"` // base64-encoded GCM nonce
 	Aliases      []string `json:"aliases"`
 	Provider     string   `json:"provider,omitempty"`
 	Tags         []string `json:"tags"`

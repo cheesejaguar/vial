@@ -15,9 +15,9 @@ var cfgFile string
 var verbose bool
 
 var rootCmd = &cobra.Command{
-	Use:   "vial",
-	Short: "The centralized secret vault for vibe coders",
-	Long:  "Store your API keys once. Pour them everywhere.",
+	Use:           "vial",
+	Short:         "The centralized secret vault for vibe coders",
+	Long:          "Store your API keys once. Pour them everywhere.",
 	SilenceUsage:  true,
 	SilenceErrors: true,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
