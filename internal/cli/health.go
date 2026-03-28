@@ -82,30 +82,32 @@ func runHealth(cmd *cobra.Command, args []string) error {
 		counts[h.Status]++
 	}
 
-	fmt.Printf("Secret Health Report — %d secret(s)\n\n", len(health))
+	fmt.Printf("%s\n\n", sectionHeader("💊", fmt.Sprintf("Secret Health Report — %d secret(s)", len(health))))
 
 	for _, h := range health {
-		icon := statusIcon(h.Status)
-		line := fmt.Sprintf("  %s %-40s %dd old", icon, h.Key, h.RotatedDays)
+		icon := styledStatusIcon(h.Status)
+		name := keyName(h.Key)
+		age := styledAge(h.RotatedDays, h.Status)
+		line := fmt.Sprintf("  %s %-50s %s", icon, name, age)
 		if h.RotationDays > 0 {
-			line += fmt.Sprintf("  (rotate every %dd)", h.RotationDays)
+			line += mutedText(fmt.Sprintf("  (rotate every %dd)", h.RotationDays))
 		}
 		if h.Status == "overdue" {
 			overdueDays := h.RotatedDays - h.RotationDays
-			line += fmt.Sprintf("  — %dd overdue!", overdueDays)
+			line += "  " + warningMsg(fmt.Sprintf("%dd overdue!", overdueDays))
 		}
 		fmt.Println(line)
 	}
 
 	fmt.Println()
 	if counts["overdue"] > 0 {
-		fmt.Fprintf(os.Stderr, "⚠ %d secret(s) overdue for rotation\n", counts["overdue"])
+		fmt.Fprintf(os.Stderr, "%s\n", warningMsg(fmt.Sprintf("%d secret(s) overdue for rotation", counts["overdue"])))
 	}
 	if counts["danger"] > 0 {
-		fmt.Fprintf(os.Stderr, "⚠ %d secret(s) stale (>180 days)\n", counts["danger"])
+		fmt.Fprintf(os.Stderr, "%s\n", errorMsg(fmt.Sprintf("%d secret(s) stale (>180 days)", counts["danger"])))
 	}
 	if counts["warning"] > 0 {
-		fmt.Fprintf(os.Stderr, "  %d secret(s) aging (>90 days)\n", counts["warning"])
+		fmt.Fprintf(os.Stderr, "  %s\n", mutedText(fmt.Sprintf("%d secret(s) aging (>90 days)", counts["warning"])))
 	}
 
 	return nil
@@ -170,25 +172,39 @@ func handleSetRotation(vm *vault.VaultManager, spec string) error {
 	}
 
 	if days == 0 {
-		fmt.Printf("✓ Removed rotation policy for %s\n", key)
+		fmt.Printf("%s Removed rotation policy for %s\n", successIcon(), keyName(key))
 	} else {
-		fmt.Printf("✓ Set rotation policy for %s: every %d days\n", key, days)
+		fmt.Printf("%s Set rotation policy for %s: every %s days\n", successIcon(), keyName(key), countText(strconv.Itoa(days)))
 	}
 	return nil
 }
 
-func statusIcon(status string) string {
+func styledStatusIcon(status string) string {
 	switch status {
 	case "ok":
-		return "✓"
+		return successIcon()
 	case "warning":
-		return "●"
+		return agingIcon()
 	case "danger":
-		return "✗"
+		return errorIcon()
 	case "overdue":
-		return "⚠"
+		return warningIcon()
 	default:
 		return " "
+	}
+}
+
+func styledAge(days int, status string) string {
+	text := fmt.Sprintf("%dd old", days)
+	switch status {
+	case "ok":
+		return styled(styleSuccess, text)
+	case "warning":
+		return styled(styleWarning, text)
+	case "danger", "overdue":
+		return styled(styleError, text)
+	default:
+		return text
 	}
 }
 

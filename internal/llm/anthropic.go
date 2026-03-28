@@ -37,7 +37,7 @@ func NewAnthropicProvider(endpoint, apiKey, model string) *AnthropicProvider {
 	}
 }
 
-func (p *AnthropicProvider) Name() string   { return "anthropic" }
+func (p *AnthropicProvider) Name() string    { return "anthropic" }
 func (p *AnthropicProvider) Available() bool { return p.apiKey != "" }
 
 type anthropicRequest struct {

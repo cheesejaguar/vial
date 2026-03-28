@@ -113,7 +113,7 @@ func runBrew(cmd *cobra.Command, args []string) error {
 		injected++
 	}
 
-	fmt.Fprintf(os.Stderr, "vial: injected %d secrets, running %s\n", injected, strings.Join(args, " "))
+	fmt.Fprintf(os.Stderr, "🧪 injected %s secrets, running %s\n", countText(fmt.Sprintf("%d", injected)), boldText(strings.Join(args, " ")))
 
 	// Find the command binary
 	binary, err := exec.LookPath(args[0])

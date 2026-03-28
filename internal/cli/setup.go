@@ -53,13 +53,13 @@ func runSetup(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	fmt.Printf("Setting up project: %s\n\n", absDir)
+	fmt.Printf("%s\n\n", sectionHeader("🧪", fmt.Sprintf("Setting up project: %s", mutedText(absDir))))
 
 	// Step 1: Scan source code
-	fmt.Println("① Scanning source code for env var references...")
+	fmt.Printf("%s Scanning source code for env var references...\n", stepNumber(1))
 	result, err := scanner.ScanDir(absDir)
 	if err != nil {
-		fmt.Printf("  ⊘ Scan failed: %v\n", err)
+		fmt.Printf("  %s Scan failed: %v\n", skipIcon(), err)
 	} else if len(result.Refs) > 0 {
 		fmt.Printf("  %s\n", result.Summary())
 	} else {
@@ -70,67 +70,67 @@ func runSetup(cmd *cobra.Command, args []string) error {
 	templatePath := filepath.Join(absDir, cfg.EnvExample)
 	if _, err := os.Stat(templatePath); os.IsNotExist(err) {
 		if result != nil && len(result.Refs) > 0 {
-			fmt.Printf("\n② Generating %s...\n", cfg.EnvExample)
+			fmt.Printf("\n%s Generating %s...\n", stepNumber(2), cfg.EnvExample)
 			if err := runScaffoldForDir(absDir, result); err != nil {
-				fmt.Printf("  ⊘ Failed: %v\n", err)
+				fmt.Printf("  %s Failed: %v\n", skipIcon(), err)
 			} else {
-				fmt.Printf("  ✓ Generated %s\n", cfg.EnvExample)
+				fmt.Printf("  %s Generated %s\n", successIcon(), cfg.EnvExample)
 			}
 		} else {
-			fmt.Printf("\n② No env vars found; skipping %s generation\n", cfg.EnvExample)
+			fmt.Printf("\n%s No env vars found; skipping %s generation\n", stepNumber(2), cfg.EnvExample)
 		}
 	} else {
-		fmt.Printf("\n② %s already exists\n", cfg.EnvExample)
+		fmt.Printf("\n%s %s already exists\n", stepNumber(2), cfg.EnvExample)
 	}
 
 	// Step 3: Register project in shelf
-	fmt.Println("\n③ Registering project in shelf...")
+	fmt.Printf("\n%s Registering project in shelf...\n", stepNumber(3))
 	reg, err := getRegistry()
 	if err != nil {
-		fmt.Printf("  ⊘ Registry error: %v\n", err)
+		fmt.Printf("  %s Registry error: %v\n", skipIcon(), err)
 	} else {
 		p, err := reg.Add(absDir)
 		if err != nil {
-			fmt.Printf("  ⊘ Already registered or error: %v\n", err)
+			fmt.Printf("  %s Already registered or error: %v\n", skipIcon(), err)
 		} else {
-			fmt.Printf("  ✓ Registered %s\n", p.Name)
+			fmt.Printf("  %s Registered %s\n", successIcon(), boldText(p.Name))
 		}
 	}
 
 	// Step 4: Pour secrets
 	if _, err := os.Stat(templatePath); err == nil {
-		fmt.Println("\n④ Pouring secrets from vault...")
+		fmt.Printf("\n%s Pouring secrets from vault...\n", stepNumber(4))
 		vm, err := requireUnlockedVault()
 		if err != nil {
-			fmt.Printf("  ⊘ Vault error: %v\n", err)
+			fmt.Printf("  %s Vault error: %v\n", skipIcon(), err)
 		} else {
 			if err := pourProject(vm, absDir); err != nil {
-				fmt.Printf("  ⊘ Pour error: %v\n", err)
+				fmt.Printf("  %s Pour error: %v\n", skipIcon(), err)
 			}
 			vm.Lock()
 		}
 	} else {
-		fmt.Printf("\n④ No %s found; skipping pour\n", cfg.EnvExample)
+		fmt.Printf("\n%s No %s found; skipping pour\n", stepNumber(4), cfg.EnvExample)
 	}
 
 	// Step 5: Install git hook
 	gitDir := filepath.Join(absDir, ".git")
 	if _, err := os.Stat(gitDir); err == nil {
 		if !hook.IsInstalled(absDir) {
-			fmt.Println("\n⑤ Installing git pre-commit hook...")
+			fmt.Printf("\n%s Installing git pre-commit hook...\n", stepNumber(5))
 			if err := hook.Install(absDir); err != nil {
-				fmt.Printf("  ⊘ Hook error: %v\n", err)
+				fmt.Printf("  %s Hook error: %v\n", skipIcon(), err)
 			} else {
-				fmt.Println("  ✓ Pre-commit hook installed")
+				fmt.Printf("  %s Pre-commit hook installed\n", successIcon())
 			}
 		} else {
-			fmt.Println("\n⑤ Git hook already installed")
+			fmt.Printf("\n%s Git hook already installed\n", stepNumber(5))
 		}
 	} else {
-		fmt.Println("\n⑤ No .git directory; skipping hook installation")
+		fmt.Printf("\n%s No .git directory; skipping hook installation\n", stepNumber(5))
 	}
 
-	fmt.Println("\n→ Project setup complete!")
+	fmt.Printf("\n%s\n", successMsg("✨ Project setup complete!"))
 	return nil
 }
 

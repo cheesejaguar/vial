@@ -1,9 +1,9 @@
 :root {
-	--purple: #6B46C1;
-	--purple-light: #9F7AEA;
-	--purple-dark: #553C9A;
-	--gold: #D69E2E;
-	--gold-light: #F6E05E;
+	--purple: #6b46c1;
+	--purple-light: #9f7aea;
+	--purple-dark: #553c9a;
+	--gold: #d69e2e;
+	--gold-light: #f6e05e;
 	--bg: #0f0f14;
 	--bg-card: #1a1a24;
 	--bg-hover: #252533;
@@ -14,6 +14,12 @@
 	--danger: #fc8181;
 	--warning: #f6ad55;
 	--font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+
+	/* Glow effects */
+	--glow-purple: 0 0 20px rgba(107, 70, 193, 0.3);
+	--glow-gold: 0 0 15px rgba(214, 158, 46, 0.2);
+	--glow-success: 0 0 15px rgba(72, 187, 120, 0.2);
+	--glow-danger: 0 0 15px rgba(252, 129, 129, 0.2);
 }
 
 * {
@@ -29,6 +35,167 @@ body {
 	line-height: 1.6;
 }
 
-code, .mono {
+code,
+.mono {
 	font-family: var(--font-mono);
+}
+
+/* ========== Animations ========== */
+
+@keyframes fadeIn {
+	from {
+		opacity: 0;
+	}
+	to {
+		opacity: 1;
+	}
+}
+
+@keyframes slideUp {
+	from {
+		opacity: 0;
+		transform: translateY(12px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+@keyframes slideInLeft {
+	from {
+		opacity: 0;
+		transform: translateX(-10px);
+	}
+	to {
+		opacity: 1;
+		transform: translateX(0);
+	}
+}
+
+@keyframes pulse {
+	0%,
+	100% {
+		transform: scale(1);
+	}
+	50% {
+		transform: scale(1.05);
+	}
+}
+
+@keyframes shimmer {
+	0% {
+		background-position: -200% 0;
+	}
+	100% {
+		background-position: 200% 0;
+	}
+}
+
+@keyframes spin {
+	to {
+		transform: rotate(360deg);
+	}
+}
+
+@keyframes glowPulse {
+	0%,
+	100% {
+		box-shadow: 0 0 5px rgba(107, 70, 193, 0.2);
+	}
+	50% {
+		box-shadow: 0 0 20px rgba(107, 70, 193, 0.4);
+	}
+}
+
+@keyframes countUp {
+	from {
+		opacity: 0;
+		transform: translateY(8px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+/* ========== Loading Spinner ========== */
+
+.loading-spinner {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	padding: 3rem;
+	gap: 1rem;
+	animation: fadeIn 0.3s ease;
+}
+
+.spinner {
+	width: 36px;
+	height: 36px;
+	border: 3px solid var(--border);
+	border-top-color: var(--purple-light);
+	border-radius: 50%;
+	animation: spin 0.8s linear infinite;
+}
+
+.loading-spinner .loading-text {
+	color: var(--text-muted);
+	font-size: 0.9rem;
+}
+
+/* ========== Stagger Animation Utilities ========== */
+
+.animate-in {
+	animation: slideUp 0.4s ease both;
+}
+
+.stagger-1 {
+	animation-delay: 0.05s;
+}
+.stagger-2 {
+	animation-delay: 0.1s;
+}
+.stagger-3 {
+	animation-delay: 0.15s;
+}
+.stagger-4 {
+	animation-delay: 0.2s;
+}
+.stagger-5 {
+	animation-delay: 0.25s;
+}
+.stagger-6 {
+	animation-delay: 0.3s;
+}
+.stagger-7 {
+	animation-delay: 0.35s;
+}
+.stagger-8 {
+	animation-delay: 0.4s;
+}
+.stagger-9 {
+	animation-delay: 0.45s;
+}
+.stagger-10 {
+	animation-delay: 0.5s;
+}
+
+/* ========== Card Glow Hover ========== */
+
+.card-glow {
+	transition: all 0.25s ease;
+}
+
+.card-glow:hover {
+	border-color: var(--purple-dark);
+	box-shadow: var(--glow-purple);
+	transform: translateY(-1px);
+}
+
+/* ========== Page Transition ========== */
+
+.page-enter {
+	animation: fadeIn 0.3s ease;
 }

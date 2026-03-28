@@ -37,8 +37,8 @@ type Config struct {
 
 // Status represents the sync state between local and remote.
 type Status struct {
-	InSync       bool
-	LocalModTime time.Time
+	InSync        bool
+	LocalModTime  time.Time
 	RemoteModTime time.Time
-	Backend      string
+	Backend       string
 }

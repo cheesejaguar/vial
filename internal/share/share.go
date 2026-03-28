@@ -14,12 +14,12 @@ import (
 
 // Bundle is an encrypted, time-limited secret bundle for sharing.
 type Bundle struct {
-	Version    int    `json:"version"`
-	Encrypted  string `json:"encrypted"` // base64-encoded AES-GCM ciphertext
-	Nonce      string `json:"nonce"`     // base64-encoded GCM nonce
-	Salt       string `json:"salt"`      // base64-encoded argon2 salt
-	ExpiresAt  string `json:"expires_at"`
-	KeyCount   int    `json:"key_count"`
+	Version   int    `json:"version"`
+	Encrypted string `json:"encrypted"` // base64-encoded AES-GCM ciphertext
+	Nonce     string `json:"nonce"`     // base64-encoded GCM nonce
+	Salt      string `json:"salt"`      // base64-encoded argon2 salt
+	ExpiresAt string `json:"expires_at"`
+	KeyCount  int    `json:"key_count"`
 }
 
 // BundlePayload is the plaintext content of a bundle.

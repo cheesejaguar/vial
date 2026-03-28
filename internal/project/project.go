@@ -10,9 +10,9 @@ import (
 
 // Project represents a registered project directory.
 type Project struct {
-	Name       string    `json:"name"`
-	Path       string    `json:"path"`
-	AddedAt    time.Time `json:"added_at"`
+	Name       string     `json:"name"`
+	Path       string     `json:"path"`
+	AddedAt    time.Time  `json:"added_at"`
 	LastPoured *time.Time `json:"last_poured,omitempty"`
 }
 

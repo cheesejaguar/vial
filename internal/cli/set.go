@@ -44,6 +44,6 @@ func runSet(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	fmt.Printf("✓ %s stored in vault\n", key)
+	fmt.Printf("%s %s stored in vault\n", successIcon(), keyName(key))
 	return nil
 }

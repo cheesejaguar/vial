@@ -154,10 +154,10 @@ func runShare(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("writing bundle: %w", err)
 	}
 
-	fmt.Printf("\n✓ Bundle created: %s\n", output)
-	fmt.Printf("  Contains %d secret(s)\n", len(secrets))
-	fmt.Printf("  Expires: %s\n", time.Now().Add(expiry).Format("2006-01-02 15:04 MST"))
-	fmt.Println("\n  Recipient imports with: vial share receive", output)
+	fmt.Printf("\n%s Bundle created: %s\n", successIcon(), boldText(output))
+	fmt.Printf("  %s Contains %s secret(s)\n", arrowIcon(), countText(fmt.Sprintf("%d", len(secrets))))
+	fmt.Printf("  %s Expires: %s\n", arrowIcon(), dimText(time.Now().Add(expiry).Format("2006-01-02 15:04 MST")))
+	fmt.Printf("\n  %s\n", mutedText("Recipient imports with: vial share receive "+output))
 
 	// Record audit event
 	var keyNames []string
@@ -207,15 +207,15 @@ func runShareReceive(cmd *cobra.Command, args []string) error {
 		val := memguard.NewBufferFromBytes([]byte(value))
 		if err := vm.SetSecret(key, val); err != nil {
 			val.Destroy()
-			fmt.Printf("  ✗ %s: %v\n", key, err)
+			fmt.Printf("  %s %s: %v\n", errorIcon(), keyName(key), err)
 			continue
 		}
 		val.Destroy()
-		fmt.Printf("  ✓ %s imported\n", key)
+		fmt.Printf("  %s %s imported\n", successIcon(), keyName(key))
 		imported++
 	}
 
-	fmt.Printf("\n→ %d secret(s) imported from bundle\n", imported)
+	fmt.Printf("\n%s %s secret(s) imported from bundle\n", arrowIcon(), countText(fmt.Sprintf("%d", imported)))
 	return nil
 }
 

@@ -35,8 +35,8 @@ type CompletionResponse struct {
 
 // Config holds LLM provider configuration.
 type Config struct {
-	Provider    string `mapstructure:"provider" yaml:"provider"`       // "openai", "anthropic", "openrouter"
-	Endpoint    string `mapstructure:"endpoint" yaml:"endpoint"`       // base URL
-	Model       string `mapstructure:"model" yaml:"model"`             // model identifier
+	Provider    string `mapstructure:"provider" yaml:"provider"`           // "openai", "anthropic", "openrouter"
+	Endpoint    string `mapstructure:"endpoint" yaml:"endpoint"`           // base URL
+	Model       string `mapstructure:"model" yaml:"model"`                 // model identifier
 	VaultKeyRef string `mapstructure:"vault_key_ref" yaml:"vault_key_ref"` // vault key holding the API key
 }

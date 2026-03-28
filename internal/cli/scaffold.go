@@ -60,14 +60,14 @@ func runScaffold(cmd *cobra.Command, args []string) error {
 	}
 
 	// Scan source code
-	fmt.Printf("Scanning %s for env var references...\n", absDir)
+	fmt.Printf("🔍 Scanning %s for env var references...\n", mutedText(absDir))
 	result, err := scanner.ScanDir(absDir)
 	if err != nil {
 		return fmt.Errorf("scanning: %w", err)
 	}
 
 	if len(result.Refs) == 0 {
-		fmt.Println("No environment variable references found in source code.")
+		fmt.Println(mutedText("No environment variable references found in source code."))
 		return nil
 	}
 
@@ -154,7 +154,7 @@ func runScaffold(cmd *cobra.Command, args []string) error {
 			lines = append(lines, name+"=")
 		}
 
-		fmt.Printf("  Added %d new variable(s) to %s\n", len(newVars), filepath.Base(outputPath))
+		fmt.Printf("  %s Added %s new variable(s) to %s\n", successIcon(), countText(fmt.Sprintf("%d", len(newVars))), filepath.Base(outputPath))
 	} else {
 		// Fresh generation
 		lines = append(lines, "# Environment variables for "+filepath.Base(absDir))
@@ -171,7 +171,7 @@ func runScaffold(cmd *cobra.Command, args []string) error {
 			}
 		}
 
-		fmt.Printf("  Generated %s with %d variable(s)\n", filepath.Base(outputPath), len(varNames))
+		fmt.Printf("  %s Generated %s with %s variable(s)\n", successIcon(), boldText(filepath.Base(outputPath)), countText(fmt.Sprintf("%d", len(varNames))))
 	}
 
 	content := strings.Join(lines, "\n") + "\n"
@@ -179,6 +179,6 @@ func runScaffold(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("writing %s: %w", outputPath, err)
 	}
 
-	fmt.Printf("  → %s\n", outputPath)
+	fmt.Printf("  %s %s\n", arrowIcon(), mutedText(outputPath))
 	return nil
 }

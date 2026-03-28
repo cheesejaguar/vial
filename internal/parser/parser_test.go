@@ -9,9 +9,9 @@ import (
 
 func TestParseBasic(t *testing.T) {
 	tests := []struct {
-		name    string
-		input   string
-		want    []EnvEntry
+		name  string
+		input string
+		want  []EnvEntry
 	}{
 		{
 			name:  "simple key=value",

@@ -26,6 +26,6 @@ func runCork(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("clearing session: %w", err)
 	}
 
-	fmt.Println("✓ Vault locked. Session cleared.")
+	fmt.Println(successMsg("🔒 Vault locked. Session cleared."))
 	return nil
 }

@@ -70,7 +70,7 @@ func TestStorePatternRule(t *testing.T) {
 func TestStoreLoadFromVault(t *testing.T) {
 	s := NewStore()
 	s.LoadFromVault(map[string][]string{
-		"OPENAI_API_KEY":  {"OPENAI_KEY", "OAI_KEY"},
+		"OPENAI_API_KEY":    {"OPENAI_KEY", "OAI_KEY"},
 		"STRIPE_SECRET_KEY": {"STRIPE_KEY"},
 	})
 

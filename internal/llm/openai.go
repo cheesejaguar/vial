@@ -37,8 +37,8 @@ func NewOpenAIProvider(endpoint, apiKey, model string) *OpenAIProvider {
 	}
 }
 
-func (p *OpenAIProvider) Name() string      { return "openai" }
-func (p *OpenAIProvider) Available() bool    { return p.apiKey != "" }
+func (p *OpenAIProvider) Name() string    { return "openai" }
+func (p *OpenAIProvider) Available() bool { return p.apiKey != "" }
 
 type openAIRequest struct {
 	Model       string          `json:"model"`

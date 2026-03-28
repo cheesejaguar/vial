@@ -18,7 +18,7 @@ const (
 // KDFParams holds the Argon2id parameters for key derivation.
 type KDFParams struct {
 	Algorithm   string `json:"algorithm"`
-	Memory      uint32 `json:"memory"`      // in KiB
+	Memory      uint32 `json:"memory"` // in KiB
 	Iterations  uint32 `json:"iterations"`
 	Parallelism uint8  `json:"parallelism"`
 	Salt        []byte `json:"salt"`

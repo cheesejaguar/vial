@@ -27,8 +27,8 @@ func runInit(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	fmt.Println("Initializing new vault at", cfg.VaultPath)
-	fmt.Println()
+	fmt.Println(sectionHeader("🧪", "Initializing new vault"))
+	fmt.Printf("  %s %s\n\n", arrowIcon(), mutedText(cfg.VaultPath))
 
 	// Read password with confirmation
 	pw1, err := readPassword("Enter master password (min 12 chars): ")
@@ -65,12 +65,12 @@ func runInit(cmd *cobra.Command, args []string) error {
 	}
 
 	fmt.Println()
-	fmt.Println("✓ Vault created successfully!")
+	fmt.Println(successMsg("Vault created successfully! ✨"))
 	fmt.Println()
-	fmt.Println("Get started:")
-	fmt.Printf("  vial key set OPENAI_API_KEY    Add a secret\n")
-	fmt.Printf("  vial key list                  List stored keys\n")
-	fmt.Printf("  vial pour                      Populate .env from vault\n")
+	fmt.Println(headerText("Get started:"))
+	fmt.Printf("  %s  %s\n", keyName("vial key set OPENAI_API_KEY"), mutedText("Add a secret"))
+	fmt.Printf("  %s  %s\n", keyName("vial key list"), mutedText("             List stored keys"))
+	fmt.Printf("  %s  %s\n", keyName("vial pour"), mutedText("                  Populate .env from vault"))
 
 	// Create default config file if it doesn't exist
 	configDir := config.DefaultConfigDir()

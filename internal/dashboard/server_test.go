@@ -9,8 +9,8 @@ import (
 	"testing"
 
 	"github.com/awnumar/memguard"
-	"os"
 	"github.com/charmbracelet/log"
+	"os"
 
 	"github.com/cheesejaguar/vial/internal/vault"
 )

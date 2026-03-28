@@ -100,25 +100,25 @@ func runDiff(cmd *cobra.Command, args []string) error {
 
 		switch {
 		case result == nil:
-			fmt.Printf("  ✗ %s — not in vault\n", key)
+			fmt.Printf("  %s %s — not in vault\n", errorIcon(), keyName(key))
 			missing++
 		case !hasExisting:
-			fmt.Printf("  + %s — in vault, not in .env\n", key)
+			fmt.Printf("  %s %s — in vault, not in .env\n", styled(styleInfo, "+"), keyName(key))
 			matched++
 		default:
 			// Check if .env value matches vault
 			vaultVal, err := vm.GetSecret(result.VaultKey)
 			if err != nil {
-				fmt.Printf("  ? %s — error reading vault\n", key)
+				fmt.Printf("  %s %s — error reading vault\n", dimText("?"), keyName(key))
 				continue
 			}
 			vaultValStr := string(vaultVal.Bytes())
 			vaultVal.Destroy()
 
 			if existingVal == vaultValStr {
-				fmt.Printf("  ✓ %s — up to date\n", key)
+				fmt.Printf("  %s %s — up to date\n", successIcon(), keyName(key))
 			} else {
-				fmt.Printf("  ⚠ %s — .env differs from vault\n", key)
+				fmt.Printf("  %s %s — .env differs from vault\n", warningIcon(), keyName(key))
 				stale++
 			}
 			matched++
@@ -126,9 +126,9 @@ func runDiff(cmd *cobra.Command, args []string) error {
 	}
 
 	fmt.Println()
-	fmt.Printf("→ %d matched, %d missing from vault", matched, missing)
+	fmt.Printf("%s %s matched, %s missing from vault", arrowIcon(), countText(fmt.Sprintf("%d", matched)), countText(fmt.Sprintf("%d", missing)))
 	if stale > 0 {
-		fmt.Printf(", %d stale", stale)
+		fmt.Printf(", %s", styled(styleWarning, fmt.Sprintf("%d stale", stale)))
 	}
 	fmt.Println()
 	return nil

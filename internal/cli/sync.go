@@ -82,12 +82,12 @@ func runSyncPush(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("no local vault found at %s", cfg.VaultPath)
 	}
 
-	fmt.Printf("Pushing vault via %s...\n", backend.Name())
+	fmt.Printf("📤 Pushing vault via %s...\n", boldText(backend.Name()))
 	if err := backend.Push(cfg.VaultPath); err != nil {
 		return fmt.Errorf("push failed: %w", err)
 	}
 
-	fmt.Println("✓ Vault pushed successfully")
+	fmt.Println(successMsg("Vault pushed successfully"))
 	return nil
 }
 
@@ -101,14 +101,14 @@ func runSyncPull(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	fmt.Printf("Pulling vault via %s...\n", backend.Name())
+	fmt.Printf("📥 Pulling vault via %s...\n", boldText(backend.Name()))
 	if err := backend.Pull(cfg.VaultPath); err != nil {
 		return fmt.Errorf("pull failed: %w", err)
 	}
 
-	fmt.Println("✓ Vault pulled successfully")
+	fmt.Println(successMsg("Vault pulled successfully"))
 	if _, err := os.Stat(cfg.VaultPath + ".bak"); err == nil {
-		fmt.Println("  Previous vault backed up to vault.json.bak")
+		fmt.Println("  " + dimText("Previous vault backed up to vault.json.bak"))
 	}
 	return nil
 }

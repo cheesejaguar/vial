@@ -42,7 +42,7 @@ func runRm(cmd *cobra.Command, args []string) error {
 		var confirm string
 		fmt.Scanln(&confirm)
 		if confirm != "y" && confirm != "Y" {
-			fmt.Println("Cancelled.")
+			fmt.Println(mutedText("Cancelled."))
 			return nil
 		}
 	}
@@ -51,6 +51,6 @@ func runRm(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	fmt.Printf("✓ %s removed from vault\n", key)
+	fmt.Printf("%s %s removed from vault\n", successIcon(), keyName(key))
 	return nil
 }

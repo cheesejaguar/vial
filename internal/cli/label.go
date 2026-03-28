@@ -78,7 +78,7 @@ func runLabelSet(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	fmt.Printf("✓ %s → %s\n", aliasName, canonicalKey)
+	fmt.Printf("%s %s %s %s\n", successIcon(), keyName(aliasName), arrowIcon(), keyName(canonicalKey))
 	return nil
 }
 
@@ -95,7 +95,7 @@ func runLabelList(cmd *cobra.Command, args []string) error {
 	for _, s := range secrets {
 		if len(s.Metadata.Aliases) > 0 {
 			for _, a := range s.Metadata.Aliases {
-				fmt.Printf("  %s → %s\n", a, s.Key)
+				fmt.Printf("  %s %s %s\n", mutedText(a), arrowIcon(), keyName(s.Key))
 			}
 			found = true
 		}
@@ -130,7 +130,7 @@ func runLabelRm(cmd *cobra.Command, args []string) error {
 				if err := vm.SetMetadata(s.Key, *meta); err != nil {
 					return err
 				}
-				fmt.Printf("✓ Removed alias %s from %s\n", aliasName, s.Key)
+				fmt.Printf("%s Removed alias %s from %s\n", successIcon(), keyName(aliasName), keyName(s.Key))
 				return nil
 			}
 		}
