@@ -24,7 +24,7 @@ jobs:
         run: go vet ./...
 
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v6
+        uses: golangci/golangci-lint-action@v7
         with:
           version: latest
 
@@ -85,6 +85,9 @@ jobs:
 
       - name: Install dependencies
         run: cd web && npm ci
+
+      - name: Svelte kit sync
+        run: cd web && npx svelte-kit sync
 
       - name: Svelte check
         run: cd web && npx svelte-check --tsconfig ./tsconfig.json
