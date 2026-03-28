@@ -88,7 +88,9 @@ func (g *GitBackend) Pull(localPath string) error {
 	// Back up local, then copy from repo
 	backupPath := localPath + ".bak"
 	if _, err := os.Stat(localPath); err == nil {
-		copyFile(localPath, backupPath)
+		if err := copyFile(localPath, backupPath); err != nil {
+			return fmt.Errorf("creating backup: %w", err)
+		}
 	}
 
 	repoFile := filepath.Join(g.repoDir, g.fileName)

@@ -192,7 +192,7 @@ func readFileIfExists(path string) ([]byte, error) {
 
 // writeFileWithDirs writes content to a file, creating parent directories as needed.
 func writeFileWithDirs(path string, data []byte, perm os.FileMode) error {
-	dir := path[:len(path)-len(filepath.Base(path))]
+	dir := filepath.Dir(path)
 	if err := os.MkdirAll(dir, 0700); err != nil {
 		return err
 	}

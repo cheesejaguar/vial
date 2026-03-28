@@ -31,8 +31,10 @@ func (c *Chain) Register(m Matcher) {
 }
 
 // Resolve finds the best match across all tiers, stopping at the first
-// tier that produces a high-confidence result (>= 0.9).
+// tier that produces a high-confidence result (>= 0.9). Lower-confidence
+// results are accumulated as fallback, and the highest-confidence match wins.
 func (c *Chain) Resolve(requestedKey string, vaultKeys []string) (*MatchResult, error) {
+	var best *MatchResult
 	for _, m := range c.matchers {
 		results, err := m.Match(requestedKey, vaultKeys)
 		if err != nil {
@@ -41,13 +43,13 @@ func (c *Chain) Resolve(requestedKey string, vaultKeys []string) (*MatchResult, 
 		if len(results) > 0 && results[0].Confidence >= 0.9 {
 			return &results[0], nil
 		}
-		// Keep lower-confidence results as fallback
-		if len(results) > 0 {
-			// For now, return the first result from the highest-priority tier
-			return &results[0], nil
+		// Keep the highest-confidence result as fallback
+		if len(results) > 0 && (best == nil || results[0].Confidence > best.Confidence) {
+			r := results[0]
+			best = &r
 		}
 	}
-	return nil, nil
+	return best, nil
 }
 
 // ResolveAll returns all candidates across all tiers.

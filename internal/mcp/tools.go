@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/cheesejaguar/vial/internal/vault"
 )
@@ -208,9 +209,10 @@ func (r *ToolRegistry) handleHealth() *CallToolResult {
 		Status       string `json:"status"`
 	}
 
+	now := time.Now()
 	var health []healthInfo
 	for _, sec := range secrets {
-		ageDays := int(sec.Metadata.Rotated.Sub(sec.Metadata.Added).Hours() / 24)
+		ageDays := int(now.Sub(sec.Metadata.Rotated).Hours() / 24)
 		status := "ok"
 		if sec.Metadata.RotationDays > 0 && ageDays > sec.Metadata.RotationDays {
 			status = "overdue"

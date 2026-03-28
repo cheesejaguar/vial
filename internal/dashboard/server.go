@@ -368,7 +368,6 @@ func serveStaticFile(w http.ResponseWriter, r *http.Request, staticFS fs.FS) {
 			return
 		}
 	}
-	defer f.Close()
 
 	// Get file info for size
 	stat, err := f.Stat()
@@ -386,9 +385,10 @@ func serveStaticFile(w http.ResponseWriter, r *http.Request, staticFS fs.FS) {
 			}
 			filePath = "index.html"
 		}
-		defer f.Close()
 		stat, _ = f.Stat()
 	}
+	// Defer close after all potential reassignments to avoid double-close
+	defer f.Close()
 
 	// Set Content-Type based on file extension
 	ext := path.Ext(filePath)
