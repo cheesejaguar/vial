@@ -43,7 +43,10 @@
 	</div>
 
 	{#if loading}
-		<div class="loading-spinner"><div class="spinner"></div><span class="loading-text">Loading...</span></div>
+		<div class="loading-spinner">
+			<div class="spinner"></div>
+			<span class="loading-text">Loading...</span>
+		</div>
 	{:else if error}
 		<p class="error-text">{error}</p>
 	{:else if entries.length === 0}
@@ -73,25 +76,60 @@
 </div>
 
 <style>
-	.page { max-width: 800px; }
-	.page-header { margin-bottom: 1.5rem; }
-	h1 { font-size: 1.2rem; font-weight: 600; color: var(--text-bright); }
-	.page-desc { font-size: 0.78rem; color: var(--text-muted); margin-top: 0.2rem; }
+	.page {
+		max-width: 800px;
+	}
+	.page-header {
+		margin-bottom: 1.5rem;
+	}
+	h1 {
+		font-size: 1.2rem;
+		font-weight: 600;
+		color: var(--text-bright);
+	}
+	.page-desc {
+		font-size: 0.78rem;
+		color: var(--text-muted);
+		margin-top: 0.2rem;
+	}
 
-	.audit-list { display: flex; flex-direction: column; gap: 1px; }
+	.audit-list {
+		display: flex;
+		flex-direction: column;
+		gap: 1px;
+	}
 	.audit-row {
-		display: flex; align-items: center; gap: 0.75rem;
-		padding: 0.55rem 1rem; font-size: 0.82rem;
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+		padding: 0.55rem 1rem;
+		font-size: 0.82rem;
 	}
 	.event-type {
-		font-family: var(--font-mono); font-weight: 500;
-		color: var(--text-bright); min-width: 60px;
+		font-family: var(--font-mono);
+		font-weight: 500;
+		color: var(--text-bright);
+		min-width: 60px;
 	}
 	.event-keys {
-		font-family: var(--font-mono); color: var(--text-secondary);
-		flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+		font-family: var(--font-mono);
+		color: var(--text-secondary);
+		flex: 1;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 	}
-	.event-detail { color: var(--text-muted); font-size: 0.75rem; }
-	.event-time { color: var(--text-muted); font-size: 0.75rem; white-space: nowrap; }
-	.error-text { color: var(--danger); font-size: 0.85rem; }
+	.event-detail {
+		color: var(--text-muted);
+		font-size: 0.75rem;
+	}
+	.event-time {
+		color: var(--text-muted);
+		font-size: 0.75rem;
+		white-space: nowrap;
+	}
+	.error-text {
+		color: var(--danger);
+		font-size: 0.85rem;
+	}
 </style>

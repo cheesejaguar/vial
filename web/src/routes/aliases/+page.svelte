@@ -28,7 +28,10 @@
 
 	async function handleAdd() {
 		addError = '';
-		if (!newAlias.trim() || !newCanonical.trim()) { addError = 'Both fields required'; return; }
+		if (!newAlias.trim() || !newCanonical.trim()) {
+			addError = 'Both fields required';
+			return;
+		}
 		try {
 			await createAlias(newAlias.trim(), newCanonical.trim());
 			aliases = (await fetchAliases()) || [];
@@ -62,7 +65,10 @@
 	</div>
 
 	{#if loading}
-		<div class="loading-spinner"><div class="spinner"></div><span class="loading-text">Loading...</span></div>
+		<div class="loading-spinner">
+			<div class="spinner"></div>
+			<span class="loading-text">Loading...</span>
+		</div>
 	{:else if error}
 		<p class="error-text">{error}</p>
 	{:else if aliases.length === 0}
@@ -78,7 +84,8 @@
 					<span class="alias-from">{a.alias}</span>
 					<span class="arrow">&rarr;</span>
 					<span class="alias-to">{a.canonical}</span>
-					<button class="btn btn-sm btn-danger" onclick={() => handleDelete(a.alias)}>Remove</button>
+					<button class="btn btn-sm btn-danger" onclick={() => handleDelete(a.alias)}>Remove</button
+					>
 				</div>
 			{/each}
 		</div>
@@ -91,11 +98,21 @@
 			<h3>Create Alias</h3>
 			<div class="form-group">
 				<label class="form-label" for="alias-name">Alias Name</label>
-				<input id="alias-name" class="input input-mono" bind:value={newAlias} placeholder="OPENAI_KEY" />
+				<input
+					id="alias-name"
+					class="input input-mono"
+					bind:value={newAlias}
+					placeholder="OPENAI_KEY"
+				/>
 			</div>
 			<div class="form-group">
 				<label class="form-label" for="canonical-key">Maps To (vault key)</label>
-				<input id="canonical-key" class="input input-mono" bind:value={newCanonical} placeholder="OPENAI_API_KEY" />
+				<input
+					id="canonical-key"
+					class="input input-mono"
+					bind:value={newCanonical}
+					placeholder="OPENAI_API_KEY"
+				/>
 			</div>
 			{#if addError}
 				<p class="error-text" style="font-size: 0.82rem;">{addError}</p>
@@ -113,18 +130,54 @@
 {/if}
 
 <style>
-	.page { max-width: 700px; }
-	.page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5rem; }
-	h1 { font-size: 1.2rem; font-weight: 600; color: var(--text-bright); }
-	.page-desc { font-size: 0.78rem; color: var(--text-muted); margin-top: 0.2rem; }
+	.page {
+		max-width: 700px;
+	}
+	.page-header {
+		display: flex;
+		justify-content: space-between;
+		align-items: flex-start;
+		margin-bottom: 1.5rem;
+	}
+	h1 {
+		font-size: 1.2rem;
+		font-weight: 600;
+		color: var(--text-bright);
+	}
+	.page-desc {
+		font-size: 0.78rem;
+		color: var(--text-muted);
+		margin-top: 0.2rem;
+	}
 
-	.alias-list { display: flex; flex-direction: column; gap: 1px; }
+	.alias-list {
+		display: flex;
+		flex-direction: column;
+		gap: 1px;
+	}
 	.alias-row {
-		display: flex; align-items: center; gap: 0.75rem;
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
 		padding: 0.65rem 1rem;
 	}
-	.alias-from { font-family: var(--font-mono); font-size: 0.82rem; color: var(--text-secondary); }
-	.arrow { color: var(--text-muted); font-size: 0.85rem; }
-	.alias-to { font-family: var(--font-mono); font-size: 0.82rem; color: var(--gold); flex: 1; }
-	.error-text { color: var(--danger); font-size: 0.85rem; }
+	.alias-from {
+		font-family: var(--font-mono);
+		font-size: 0.82rem;
+		color: var(--text-secondary);
+	}
+	.arrow {
+		color: var(--text-muted);
+		font-size: 0.85rem;
+	}
+	.alias-to {
+		font-family: var(--font-mono);
+		font-size: 0.82rem;
+		color: var(--gold);
+		flex: 1;
+	}
+	.error-text {
+		color: var(--danger);
+		font-size: 0.85rem;
+	}
 </style>

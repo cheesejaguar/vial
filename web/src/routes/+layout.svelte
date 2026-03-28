@@ -46,11 +46,7 @@
 
 		<nav class="nav">
 			{#each nav as item}
-				<a
-					href={item.href}
-					class="nav-item"
-					class:active={isActive(item.href, $page.url.pathname)}
-				>
+				<a href={item.href} class="nav-item" class:active={isActive(item.href, $page.url.pathname)}>
 					<span class="nav-key">{item.icon}</span>
 					<span>{item.label}</span>
 				</a>
@@ -71,7 +67,17 @@
 		{:else}
 			<div class="auth-gate">
 				<div class="auth-lock">
-					<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--text-muted)">
+					<svg
+						width="32"
+						height="32"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="1.5"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						style="color: var(--text-muted)"
+					>
 						<rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
 						<path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
 					</svg>

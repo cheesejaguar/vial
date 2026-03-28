@@ -43,7 +43,8 @@ export async function apiFetch(path, options = {}) {
 // Vault secrets
 export const fetchSecrets = () => apiFetch('/vault/secrets');
 export const fetchSecret = (key) => apiFetch(`/vault/secrets/${encodeURIComponent(key)}`);
-export const revealSecret = (key) => apiFetch(`/vault/secrets/${encodeURIComponent(key)}?reveal=true`);
+export const revealSecret = (key) =>
+	apiFetch(`/vault/secrets/${encodeURIComponent(key)}?reveal=true`);
 export const deleteSecret = (key) =>
 	apiFetch(`/vault/secrets/${encodeURIComponent(key)}`, { method: 'DELETE' });
 export const createSecret = (key, value) =>

@@ -27,7 +27,10 @@
 
 	async function handleAdd() {
 		addError = '';
-		if (!newPath.trim()) { addError = 'Path is required'; return; }
+		if (!newPath.trim()) {
+			addError = 'Path is required';
+			return;
+		}
 		try {
 			await addProject(newPath.trim());
 			projects = (await fetchProjects()) || [];
@@ -55,13 +58,18 @@
 	<div class="page-header">
 		<div>
 			<h1>Projects</h1>
-			<p class="page-desc">{projects.length} registered project{projects.length !== 1 ? 's' : ''}</p>
+			<p class="page-desc">
+				{projects.length} registered project{projects.length !== 1 ? 's' : ''}
+			</p>
 		</div>
 		<button class="btn btn-primary" onclick={() => (showAdd = true)}>Add Project</button>
 	</div>
 
 	{#if loading}
-		<div class="loading-spinner"><div class="spinner"></div><span class="loading-text">Loading...</span></div>
+		<div class="loading-spinner">
+			<div class="spinner"></div>
+			<span class="loading-text">Loading...</span>
+		</div>
 	{:else if error}
 		<p class="error-text">{error}</p>
 	{:else if projects.length === 0}
@@ -101,7 +109,12 @@
 			<h3>Register Project</h3>
 			<div class="form-group">
 				<label class="form-label" for="proj-path">Directory Path</label>
-				<input id="proj-path" class="input input-mono" bind:value={newPath} placeholder="/Users/you/projects/my-app" />
+				<input
+					id="proj-path"
+					class="input input-mono"
+					bind:value={newPath}
+					placeholder="/Users/you/projects/my-app"
+				/>
 			</div>
 			{#if addError}
 				<p class="error-text" style="font-size: 0.82rem;">{addError}</p>
@@ -119,21 +132,68 @@
 {/if}
 
 <style>
-	.page { max-width: 800px; }
-	.page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5rem; }
-	h1 { font-size: 1.2rem; font-weight: 600; color: var(--text-bright); }
-	.page-desc { font-size: 0.78rem; color: var(--text-muted); margin-top: 0.2rem; }
+	.page {
+		max-width: 800px;
+	}
+	.page-header {
+		display: flex;
+		justify-content: space-between;
+		align-items: flex-start;
+		margin-bottom: 1.5rem;
+	}
+	h1 {
+		font-size: 1.2rem;
+		font-weight: 600;
+		color: var(--text-bright);
+	}
+	.page-desc {
+		font-size: 0.78rem;
+		color: var(--text-muted);
+		margin-top: 0.2rem;
+	}
 
-	.project-list { display: flex; flex-direction: column; gap: 1px; }
+	.project-list {
+		display: flex;
+		flex-direction: column;
+		gap: 1px;
+	}
 	.project-row {
-		display: grid; grid-template-columns: 1fr auto auto;
-		align-items: center; gap: 1rem;
+		display: grid;
+		grid-template-columns: 1fr auto auto;
+		align-items: center;
+		gap: 1rem;
 		padding: 0.75rem 1rem;
 	}
-	.project-info { display: flex; flex-direction: column; gap: 0.15rem; min-width: 0; }
-	.project-name { font-weight: 600; font-size: 0.88rem; color: var(--text-bright); }
-	.project-path { font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; }
-	.project-meta { display: flex; gap: 0.35rem; align-items: center; flex-wrap: wrap; }
-	.meta-text { font-size: 0.72rem; color: var(--text-muted); }
-	.error-text { color: var(--danger); font-size: 0.85rem; }
+	.project-info {
+		display: flex;
+		flex-direction: column;
+		gap: 0.15rem;
+		min-width: 0;
+	}
+	.project-name {
+		font-weight: 600;
+		font-size: 0.88rem;
+		color: var(--text-bright);
+	}
+	.project-path {
+		font-family: var(--font-mono);
+		font-size: 0.75rem;
+		color: var(--text-muted);
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+	.project-meta {
+		display: flex;
+		gap: 0.35rem;
+		align-items: center;
+		flex-wrap: wrap;
+	}
+	.meta-text {
+		font-size: 0.72rem;
+		color: var(--text-muted);
+	}
+	.error-text {
+		color: var(--danger);
+		font-size: 0.85rem;
+	}
 </style>

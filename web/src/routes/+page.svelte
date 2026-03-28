@@ -36,8 +36,14 @@
 
 	async function handleAdd() {
 		addError = '';
-		if (!newKey.trim()) { addError = 'Key name is required'; return; }
-		if (!newValue.trim()) { addError = 'Value is required'; return; }
+		if (!newKey.trim()) {
+			addError = 'Key name is required';
+			return;
+		}
+		if (!newValue.trim()) {
+			addError = 'Value is required';
+			return;
+		}
 		try {
 			await createSecret(newKey.trim(), newValue.trim());
 			const data = await fetchSecrets();
@@ -85,7 +91,9 @@
 	<div class="page-header">
 		<div>
 			<h1>Secrets</h1>
-			<p class="page-desc">{$filteredSecrets.length} key{$filteredSecrets.length !== 1 ? 's' : ''} in vault</p>
+			<p class="page-desc">
+				{$filteredSecrets.length} key{$filteredSecrets.length !== 1 ? 's' : ''} in vault
+			</p>
 		</div>
 		<div class="header-actions">
 			<input
@@ -173,11 +181,22 @@
 			<h3>Add Secret</h3>
 			<div class="form-group">
 				<label class="form-label" for="new-key">Key Name</label>
-				<input id="new-key" class="input input-mono" bind:value={newKey} placeholder="OPENAI_API_KEY" />
+				<input
+					id="new-key"
+					class="input input-mono"
+					bind:value={newKey}
+					placeholder="OPENAI_API_KEY"
+				/>
 			</div>
 			<div class="form-group">
 				<label class="form-label" for="new-value">Value</label>
-				<input id="new-value" class="input input-mono" type="password" bind:value={newValue} placeholder="sk-..." />
+				<input
+					id="new-value"
+					class="input input-mono"
+					type="password"
+					bind:value={newValue}
+					placeholder="sk-..."
+				/>
 			</div>
 			{#if addError}
 				<p class="error-text" style="font-size: 0.82rem; margin-top: 0.5rem;">{addError}</p>
@@ -195,38 +214,102 @@
 {/if}
 
 <style>
-	.page { max-width: 800px; }
-	.page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5rem; }
-	h1 { font-size: 1.2rem; font-weight: 600; color: var(--text-bright); }
-	.page-desc { font-size: 0.78rem; color: var(--text-muted); margin-top: 0.2rem; }
-	.header-actions { display: flex; gap: 0.5rem; align-items: center; }
-
-	.tags { display: flex; gap: 0.35rem; margin-bottom: 1.25rem; flex-wrap: wrap; }
-	.tag {
-		font-size: 0.75rem; padding: 0.2rem 0.6rem; border-radius: 4px;
-		background: var(--bg-raised); border: 1px solid var(--border); color: var(--text-secondary);
-		cursor: pointer; transition: all var(--transition);
+	.page {
+		max-width: 800px;
 	}
-	.tag:hover { color: var(--text); border-color: var(--text-muted); }
-	.tag.active { background: var(--purple-muted); border-color: var(--purple-dark); color: var(--purple-light); }
+	.page-header {
+		display: flex;
+		justify-content: space-between;
+		align-items: flex-start;
+		margin-bottom: 1.5rem;
+	}
+	h1 {
+		font-size: 1.2rem;
+		font-weight: 600;
+		color: var(--text-bright);
+	}
+	.page-desc {
+		font-size: 0.78rem;
+		color: var(--text-muted);
+		margin-top: 0.2rem;
+	}
+	.header-actions {
+		display: flex;
+		gap: 0.5rem;
+		align-items: center;
+	}
 
-	.secret-list { display: flex; flex-direction: column; gap: 1px; }
+	.tags {
+		display: flex;
+		gap: 0.35rem;
+		margin-bottom: 1.25rem;
+		flex-wrap: wrap;
+	}
+	.tag {
+		font-size: 0.75rem;
+		padding: 0.2rem 0.6rem;
+		border-radius: 4px;
+		background: var(--bg-raised);
+		border: 1px solid var(--border);
+		color: var(--text-secondary);
+		cursor: pointer;
+		transition: all var(--transition);
+	}
+	.tag:hover {
+		color: var(--text);
+		border-color: var(--text-muted);
+	}
+	.tag.active {
+		background: var(--purple-muted);
+		border-color: var(--purple-dark);
+		color: var(--purple-light);
+	}
+
+	.secret-list {
+		display: flex;
+		flex-direction: column;
+		gap: 1px;
+	}
 	.secret-row {
-		display: grid; grid-template-columns: 1fr auto auto;
-		align-items: center; gap: 1rem;
+		display: grid;
+		grid-template-columns: 1fr auto auto;
+		align-items: center;
+		gap: 1rem;
 		padding: 0.75rem 1rem;
 	}
-	.secret-main { display: flex; align-items: center; gap: 0.5rem; min-width: 0; }
+	.secret-main {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		min-width: 0;
+	}
 	.secret-key {
-		font-family: var(--font-mono); font-size: 0.85rem; font-weight: 500;
-		color: var(--text-bright); white-space: nowrap;
+		font-family: var(--font-mono);
+		font-size: 0.85rem;
+		font-weight: 500;
+		color: var(--text-bright);
+		white-space: nowrap;
 	}
 	.secret-value {
-		font-family: var(--font-mono); font-size: 0.78rem; color: var(--text-muted);
+		font-family: var(--font-mono);
+		font-size: 0.78rem;
+		color: var(--text-muted);
 	}
-	.revealed { font-size: 0.78rem; background: var(--gold-muted); word-break: break-all; }
-	.masked { letter-spacing: 0.1em; }
-	.secret-actions { display: flex; gap: 0.35rem; }
+	.revealed {
+		font-size: 0.78rem;
+		background: var(--gold-muted);
+		word-break: break-all;
+	}
+	.masked {
+		letter-spacing: 0.1em;
+	}
+	.secret-actions {
+		display: flex;
+		gap: 0.35rem;
+	}
 
-	.error-text { color: var(--danger); font-size: 0.85rem; }
+	.error-text {
+		color: var(--danger);
+		font-size: 0.85rem;
+	}
 </style>
