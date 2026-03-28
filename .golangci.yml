@@ -38,11 +38,8 @@ linters:
         - "-QF*"
         - "-S1011"
 
-issues:
-  exclude-dirs:
-    - vendor
-    - web
-  exclude-rules:
-    - path: _test\.go
-      linters:
-        - gocritic
+  exclusions:
+    rules:
+      - path: _test\.go
+        linters:
+          - gocritic
