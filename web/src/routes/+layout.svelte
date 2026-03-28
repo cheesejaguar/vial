@@ -1,7 +1,26 @@
 <script>
 	import '../app.css';
+	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
+	import { setToken } from '$lib/api.js';
 	let { children } = $props();
+
+	let authenticated = $state(false);
+
+	onMount(() => {
+		// Extract token from URL fragment (#token=...)
+		const hash = window.location.hash;
+		if (hash.startsWith('#token=')) {
+			const token = hash.substring(7);
+			setToken(token);
+			// Clear the fragment from the URL without reloading
+			history.replaceState(null, '', window.location.pathname);
+		}
+
+		// Check if we have a token
+		const existing = sessionStorage.getItem('vial_token');
+		authenticated = !!existing;
+	});
 
 	const navItems = [
 		{ href: '/', label: 'Secrets', icon: '🔑' },
@@ -37,7 +56,17 @@
 		</div>
 	</nav>
 	<main class="content page-enter">
-		{@render children()}
+		{#if authenticated}
+			{@render children()}
+		{:else}
+			<div class="auth-message">
+				<div class="auth-icon">🔒</div>
+				<h2>Dashboard Not Connected</h2>
+				<p>Start the dashboard from your terminal:</p>
+				<code class="auth-cmd">vial dashboard</code>
+				<p class="auth-hint">The command will open this page with an authenticated session.</p>
+			</div>
+		{/if}
 	</main>
 </div>
 
@@ -129,4 +158,27 @@
 		padding: 2rem;
 		max-width: 1200px;
 	}
+	.auth-message {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		min-height: 60vh;
+		text-align: center;
+		gap: 1rem;
+	}
+	.auth-icon { font-size: 3rem; opacity: 0.6; }
+	.auth-message h2 { color: var(--text-bright); font-size: 1.4rem; }
+	.auth-message p { color: var(--text-muted); font-size: 0.95rem; }
+	.auth-cmd {
+		display: block;
+		font-family: var(--font-mono);
+		font-size: 1rem;
+		color: var(--gold);
+		background: var(--bg-card);
+		border: 1px solid var(--border);
+		padding: 0.75rem 1.5rem;
+		border-radius: 8px;
+	}
+	.auth-hint { font-size: 0.85rem; }
 </style>

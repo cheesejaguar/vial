@@ -25,7 +25,7 @@ export async function apiFetch(path, options = {}) {
 
 	if (res.status === 401) {
 		clearToken();
-		throw new Error('Session expired');
+		throw new Error('Not authenticated — run "vial dashboard" from your terminal');
 	}
 
 	if (!res.ok) {
