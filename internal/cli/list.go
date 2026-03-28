@@ -39,7 +39,7 @@ func runList(cmd *cobra.Command, args []string) error {
 
 	secrets := vm.ListSecrets()
 	if len(secrets) == 0 {
-		fmt.Println("No secrets stored. Use 'vial key set NAME' to add one.")
+		fmt.Println(mutedText("No secrets stored. Use 'vial key set NAME' to add one."))
 		return nil
 	}
 
@@ -48,18 +48,20 @@ func runList(cmd *cobra.Command, args []string) error {
 		return secrets[i].Key < secrets[j].Key
 	})
 
+	fmt.Printf("%s\n\n", sectionHeader("🔑", "Vault Secrets"))
+
 	for _, s := range secrets {
-		line := s.Key
+		line := "  " + keyName(s.Key)
 		if len(s.Metadata.Tags) > 0 {
-			line += fmt.Sprintf("  [%s]", joinTags(s.Metadata.Tags))
+			line += "  " + badgeText("["+joinTags(s.Metadata.Tags)+"]")
 		}
 		if len(s.Metadata.Aliases) > 0 {
-			line += fmt.Sprintf("  (aliases: %s)", joinTags(s.Metadata.Aliases))
+			line += "  " + dimText("(aliases: "+joinTags(s.Metadata.Aliases)+")")
 		}
 		fmt.Println(line)
 	}
 
-	fmt.Printf("\n%d secret(s) stored\n", len(secrets))
+	fmt.Printf("\n%s\n", mutedText(fmt.Sprintf("🔐 %d secret(s) stored", len(secrets))))
 	return nil
 }
 

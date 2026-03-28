@@ -55,8 +55,8 @@ func runHookInstall(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	fmt.Println("✓ Pre-commit hook installed")
-	fmt.Println("  Staged files will be scanned for vault secrets before each commit.")
+	fmt.Println(successMsg("Pre-commit hook installed"))
+	fmt.Println("  " + dimText("Staged files will be scanned for vault secrets before each commit."))
 	return nil
 }
 
@@ -67,7 +67,7 @@ func runHookUninstall(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	fmt.Println("✓ Pre-commit hook removed")
+	fmt.Println(successMsg("Pre-commit hook removed"))
 	return nil
 }
 
@@ -97,7 +97,7 @@ func runHookCheck(cmd *cobra.Command, args []string) error {
 	}
 
 	if len(secretValues) == 0 {
-		fmt.Println("✓ No secrets in vault to check against")
+		fmt.Println(successMsg("No secrets in vault to check against"))
 		return nil
 	}
 
@@ -109,13 +109,13 @@ func runHookCheck(cmd *cobra.Command, args []string) error {
 	}
 
 	if len(findings) == 0 {
-		fmt.Println("✓ No secrets found in staged files")
+		fmt.Println(successMsg("No secrets found in staged files"))
 		return nil
 	}
 
-	fmt.Fprintf(os.Stderr, "\n✗ SECRET LEAK DETECTED: found %d secret(s) in staged files:\n\n", len(findings))
+	fmt.Fprintf(os.Stderr, "\n%s\n\n", errorMsg(fmt.Sprintf("🚨 SECRET LEAK DETECTED: found %d secret(s) in staged files:", len(findings))))
 	for _, f := range findings {
-		fmt.Fprintf(os.Stderr, "  %s:%d — contains value of %s\n", f.File, f.Line, f.KeyName)
+		fmt.Fprintf(os.Stderr, "  %s %s:%d — contains value of %s\n", errorIcon(), f.File, f.Line, keyName(f.KeyName))
 	}
 	fmt.Fprintln(os.Stderr)
 

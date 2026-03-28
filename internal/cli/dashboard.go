@@ -47,9 +47,12 @@ func runDashboard(cmd *cobra.Command, args []string) error {
 	}
 
 	url := srv.URL()
-	fmt.Printf("Dashboard: %s\n", fmt.Sprintf("http://127.0.0.1:%d", dashboardPort))
-	fmt.Println("Session token passed via URL fragment (not logged)")
-	fmt.Println("Press Ctrl+C to stop")
+	fmt.Println()
+	fmt.Printf("%s\n", sectionHeader("🌐", "Vial Dashboard"))
+	fmt.Printf("  %s %s\n", arrowIcon(), urlText(fmt.Sprintf("http://127.0.0.1:%d", dashboardPort)))
+	fmt.Printf("  %s\n", dimText("Session token passed via URL fragment (not logged)"))
+	fmt.Println()
+	fmt.Printf("  %s\n", mutedText("Press Ctrl+C to stop"))
 
 	// Open browser
 	openBrowser(url)

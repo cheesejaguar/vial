@@ -24,6 +24,6 @@ func runUncork(cmd *cobra.Command, args []string) error {
 	}
 	defer vm.Lock()
 
-	fmt.Println("✓ Vault unlocked. Session cached.")
+	fmt.Println(successMsg("🔓 Vault unlocked. Session cached."))
 	return nil
 }

@@ -202,11 +202,11 @@ func runDistill(cmd *cobra.Command, args []string) error {
 		if c.status == "changed" {
 			status = "updated"
 		}
-		fmt.Printf("  ✓ %s %s\n", c.key, status)
+		fmt.Printf("  %s %s %s\n", successIcon(), keyName(c.key), mutedText(status))
 		imported++
 	}
 
-	fmt.Printf("\n→ %d key(s) imported\n", imported)
+	fmt.Printf("\n%s %s key(s) imported\n", arrowIcon(), countText(fmt.Sprintf("%d", imported)))
 	return nil
 }
 
@@ -251,14 +251,14 @@ func runDistillFromExternal(vm *vault.VaultManager, source string, args []string
 		value := memguard.NewBufferFromBytes([]byte(s.Value))
 		if err := vm.SetSecret(s.Key, value); err != nil {
 			value.Destroy()
-			fmt.Printf("  ✗ %s: %v\n", s.Key, err)
+			fmt.Printf("  %s %s: %v\n", errorIcon(), keyName(s.Key), err)
 			continue
 		}
 		value.Destroy()
-		fmt.Printf("  ✓ %s imported\n", s.Key)
+		fmt.Printf("  %s %s imported\n", successIcon(), keyName(s.Key))
 		imported++
 	}
 
-	fmt.Printf("\n→ %d key(s) imported from %s\n", imported, source)
+	fmt.Printf("\n%s %s key(s) imported from %s\n", arrowIcon(), countText(fmt.Sprintf("%d", imported)), boldText(source))
 	return nil
 }

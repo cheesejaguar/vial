@@ -52,7 +52,7 @@ func runAudit(cmd *cobra.Command, args []string) error {
 	}
 
 	if len(entries) == 0 {
-		fmt.Println("No audit entries yet.")
+		fmt.Println(mutedText("No audit entries yet."))
 		return nil
 	}
 
@@ -61,25 +61,26 @@ func runAudit(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	fmt.Printf("Audit Log — last %d entries\n\n", len(entries))
+	fmt.Printf("%s\n\n", sectionHeader("📋", fmt.Sprintf("Audit Log — last %d entries", len(entries))))
 
 	for _, e := range entries {
-		ts := e.Timestamp.Local().Format("2006-01-02 15:04:05")
+		ts := dimText(e.Timestamp.Local().Format("2006-01-02 15:04:05"))
 		icon := auditEventIcon(e.Event)
+		eventName := styledAuditEvent(e.Event)
 		keys := ""
 		if len(e.Keys) > 0 {
-			keys = " [" + strings.Join(e.Keys, ", ") + "]"
+			keys = " " + keyName("["+strings.Join(e.Keys, ", ")+"]")
 		}
 		project := ""
 		if e.Project != "" {
-			project = " → " + filepath.Base(e.Project)
+			project = " " + arrowIcon() + " " + mutedText(filepath.Base(e.Project))
 		}
 		detail := ""
 		if e.Detail != "" {
-			detail = " — " + e.Detail
+			detail = " — " + dimText(e.Detail)
 		}
 
-		fmt.Printf("  %s %s %-8s%s%s%s\n", ts, icon, e.Event, keys, project, detail)
+		fmt.Printf("  %s %s %-18s%s%s%s\n", ts, icon, eventName, keys, project, detail)
 	}
 
 	return nil
@@ -105,6 +106,28 @@ func auditEventIcon(event audit.EventType) string {
 		return "🔗"
 	default:
 		return "  "
+	}
+}
+
+func styledAuditEvent(event audit.EventType) string {
+	name := string(event)
+	switch event {
+	case audit.EventGet:
+		return styled(styleInfo, name)
+	case audit.EventPour, audit.EventBrew:
+		return styled(styleSuccess, name)
+	case audit.EventSet, audit.EventDistill:
+		return styled(styleKey, name)
+	case audit.EventRemove:
+		return styled(styleError, name)
+	case audit.EventUnlock:
+		return styled(styleSuccess, name)
+	case audit.EventLock:
+		return styled(styleMuted, name)
+	case audit.EventExport, audit.EventShare:
+		return styled(styleWarning, name)
+	default:
+		return name
 	}
 }
 

@@ -78,7 +78,7 @@ func runExport(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	fmt.Fprintln(os.Stderr, "⚠ WARNING: outputting secrets in plaintext")
+	fmt.Fprintln(os.Stderr, warningMsg("WARNING: outputting secrets in plaintext"))
 
 	// Collect all key-value pairs
 	secrets := make(map[string]string, len(keys))
@@ -157,7 +157,7 @@ func runExport(cmd *cobra.Command, args []string) error {
 					fmt.Fprintf(f, "%s=%s\n", key, val)
 				}
 			}
-			fmt.Fprintf(os.Stderr, "✓ %d secret(s) written to $GITHUB_ENV\n", len(secrets))
+			fmt.Fprintf(os.Stderr, "%s %d secret(s) written to $GITHUB_ENV\n", successIcon(), len(secrets))
 		}
 
 	case "shell":

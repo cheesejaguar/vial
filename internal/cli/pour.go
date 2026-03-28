@@ -75,17 +75,17 @@ func runPourAll(vm *vault.VaultManager) error {
 	errors := 0
 
 	for _, p := range projects {
-		fmt.Printf("\n── %s (%s)\n", p.Name, p.Path)
+		fmt.Printf("\n%s %s %s\n", styled(styleDim, "──"), boldText(p.Name), mutedText("("+p.Path+")"))
 
 		// Check if .env.example exists
 		templatePath := filepath.Join(p.Path, cfg.EnvExample)
 		if _, err := os.Stat(templatePath); os.IsNotExist(err) {
-			fmt.Printf("  ⊘ No %s found, skipping\n", cfg.EnvExample)
+			fmt.Printf("  %s No %s found, skipping\n", skipIcon(), cfg.EnvExample)
 			continue
 		}
 
 		if err := pourProject(vm, p.Path); err != nil {
-			fmt.Printf("  ✗ Error: %v\n", err)
+			fmt.Printf("  %s %s\n", errorIcon(), styled(styleError, fmt.Sprintf("Error: %v", err)))
 			errors++
 			continue
 		}
@@ -93,9 +93,9 @@ func runPourAll(vm *vault.VaultManager) error {
 		total++
 	}
 
-	fmt.Printf("\n→ Poured %d/%d projects", total, len(projects))
+	fmt.Printf("\n%s Poured %s/%d projects", arrowIcon(), countText(fmt.Sprintf("%d", total)), len(projects))
 	if errors > 0 {
-		fmt.Printf(" (%d errors)", errors)
+		fmt.Printf(" %s", styled(styleError, fmt.Sprintf("(%d errors)", errors)))
 	}
 	fmt.Println()
 	return nil
@@ -167,7 +167,7 @@ func pourProject(vm *vault.VaultManager, dir string) error {
 		}
 
 		if result == nil {
-			fmt.Printf("  ✗ %s → not found in vault\n", key)
+			fmt.Printf("  %s %s %s not found in vault\n", errorIcon(), keyName(key), arrowIcon())
 			unmatched++
 			continue
 		}
@@ -194,9 +194,9 @@ func pourProject(vm *vault.VaultManager, dir string) error {
 					return fmt.Errorf("conflict on %s: use --force or --no-clobber for non-interactive mode", key)
 				}
 
-				fmt.Printf("\n  ⚠ Conflict: %s\n", key)
-				fmt.Printf("    Existing: %s\n", maskValue(existingVal))
-				fmt.Printf("    Vault:    %s\n", maskValue(secretValue))
+				fmt.Printf("\n  %s Conflict: %s\n", warningIcon(), keyName(key))
+				fmt.Printf("    %s %s\n", mutedText("Existing:"), dimText(maskValue(existingVal)))
+				fmt.Printf("    %s %s\n", mutedText("Vault:   "), dimText(maskValue(secretValue)))
 				fmt.Printf("    Use vault value? [Y/n]: ")
 
 				var confirm string
@@ -213,7 +213,7 @@ func pourProject(vm *vault.VaultManager, dir string) error {
 		if result.VaultKey != key {
 			matchInfo = fmt.Sprintf("matched (%s: %s)", result.Reason, result.VaultKey)
 		}
-		fmt.Printf("  ✓ %s → %s\n", key, matchInfo)
+		fmt.Printf("  %s %s %s %s\n", successIcon(), keyName(key), arrowIcon(), mutedText(matchInfo))
 		resolved[key] = secretValue
 		matched++
 	}
@@ -233,7 +233,7 @@ func pourProject(vm *vault.VaultManager, dir string) error {
 	}
 
 	total := matched + skipped
-	fmt.Printf("  → .env written with %d/%d keys populated\n", total, len(keysNeeded))
+	fmt.Printf("  %s .env written with %s/%d keys populated\n", arrowIcon(), countText(fmt.Sprintf("%d", total)), len(keysNeeded))
 
 	// Record audit event
 	var matchedKeys []string
