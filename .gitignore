@@ -10,6 +10,7 @@ dist/
 *.test
 *.out
 coverage.txt
+coverage.html
 
 # IDE
 .idea/
@@ -42,6 +43,9 @@ web/node_modules/
 # Dashboard embedded assets (built from web/, placeholder committed)
 internal/dashboard/static/*
 !internal/dashboard/static/index.html
+
+# Generated docs (from Claude Code research agents)
+doc/
 
 # Go workspace
 go.work
