@@ -2,194 +2,228 @@
 	import '../app.css';
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
-	import { setToken } from '$lib/api.js';
-	let { children } = $props();
+	import { setToken, hasToken, lockVault } from '$lib/api.js';
 
+	let { children } = $props();
 	let authenticated = $state(false);
 
 	onMount(() => {
-		// Extract token from URL fragment (#token=...)
 		const hash = window.location.hash;
 		if (hash.startsWith('#token=')) {
-			const token = hash.substring(7);
-			setToken(token);
-			// Clear the fragment from the URL without reloading
+			setToken(hash.substring(7));
 			history.replaceState(null, '', window.location.pathname);
 		}
-
-		// Check if we have a token
-		const existing = sessionStorage.getItem('vial_token');
-		authenticated = !!existing;
+		authenticated = hasToken();
 	});
 
-	const navItems = [
-		{ href: '/', label: 'Secrets', icon: '🔑' },
-		{ href: '/aliases', label: 'Aliases', icon: '🏷️' },
-		{ href: '/projects', label: 'Projects', icon: '📁' },
-		{ href: '/health', label: 'Health', icon: '💊' },
+	const nav = [
+		{ href: '/', label: 'Secrets', icon: 'K' },
+		{ href: '/projects', label: 'Projects', icon: 'P' },
+		{ href: '/aliases', label: 'Aliases', icon: 'A' },
+		{ href: '/health', label: 'Health', icon: 'H' },
+		{ href: '/audit', label: 'Audit', icon: 'L' },
+		{ href: '/settings', label: 'Settings', icon: 'S' },
 	];
 
 	function isActive(href, pathname) {
 		if (href === '/') return pathname === '/';
 		return pathname.startsWith(href);
 	}
+
+	async function handleLock() {
+		try {
+			await lockVault();
+		} catch {}
+	}
 </script>
 
-<div class="layout">
-	<nav class="sidebar">
-		<div class="logo">
-			<span class="logo-icon">🧪</span>
-			<span class="logo-text">Vial</span>
-		</div>
-		<ul class="nav-links">
-			{#each navItems as item}
-				<li>
-					<a href={item.href} class:active={isActive(item.href, $page.url.pathname)}>
-						<span class="nav-icon">{item.icon}</span>
-						<span class="nav-label">{item.label}</span>
-					</a>
-				</li>
+<div class="shell">
+	<aside class="sidebar">
+		<a href="/" class="brand">
+			<span class="brand-mark">V</span>
+			<span class="brand-text">vial</span>
+		</a>
+
+		<nav class="nav">
+			{#each nav as item}
+				<a
+					href={item.href}
+					class="nav-item"
+					class:active={isActive(item.href, $page.url.pathname)}
+				>
+					<span class="nav-key">{item.icon}</span>
+					<span>{item.label}</span>
+				</a>
 			{/each}
-		</ul>
-		<div class="sidebar-footer">
-			<div class="sidebar-tagline">Encrypted secret vault</div>
+		</nav>
+
+		<div class="sidebar-bottom">
+			<button class="nav-item lock-btn" onclick={handleLock}>
+				<span class="nav-key">L</span>
+				<span>Lock</span>
+			</button>
 		</div>
-	</nav>
-	<main class="content page-enter">
+	</aside>
+
+	<main class="main page-enter">
 		{#if authenticated}
 			{@render children()}
 		{:else}
-			<div class="auth-message">
-				<div class="auth-icon">🔒</div>
-				<h2>Dashboard Not Connected</h2>
+			<div class="auth-gate">
+				<div class="auth-lock">
+					<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--text-muted)">
+						<rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+						<path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+					</svg>
+				</div>
+				<h2>Not Connected</h2>
 				<p>Start the dashboard from your terminal:</p>
-				<code class="auth-cmd">vial dashboard</code>
-				<p class="auth-hint">The command will open this page with an authenticated session.</p>
+				<code>vial dashboard</code>
 			</div>
 		{/if}
 	</main>
 </div>
 
 <style>
-	.layout {
+	.shell {
 		display: flex;
 		min-height: 100vh;
 	}
+
 	.sidebar {
-		width: 230px;
-		background: linear-gradient(180deg, var(--bg-card) 0%, #151520 100%);
+		width: 180px;
+		background: var(--bg-surface);
 		border-right: 1px solid var(--border);
-		padding: 1.5rem 1rem;
-		flex-shrink: 0;
+		padding: 1.25rem 0.75rem;
 		display: flex;
 		flex-direction: column;
+		flex-shrink: 0;
 		position: sticky;
 		top: 0;
 		height: 100vh;
 	}
-	.logo {
+
+	.brand {
 		display: flex;
 		align-items: center;
-		gap: 0.6rem;
-		margin-bottom: 2rem;
-		padding: 0.5rem 0.75rem;
-		animation: slideInLeft 0.5s ease;
+		gap: 0.5rem;
+		padding: 0.25rem 0.5rem;
+		margin-bottom: 1.5rem;
+		text-decoration: none;
 	}
-	.logo-icon {
-		font-size: 1.6rem;
-		animation: pulse 3s ease-in-out infinite;
-	}
-	.logo-text {
-		font-size: 1.3rem;
-		font-weight: 700;
-		color: var(--purple-light);
+
+	.brand-mark {
+		width: 24px;
+		height: 24px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		background: var(--purple);
+		color: #fff;
+		border-radius: 6px;
 		font-family: var(--font-mono);
-		letter-spacing: 0.5px;
+		font-size: 0.75rem;
+		font-weight: 700;
 	}
-	.nav-links {
-		list-style: none;
+
+	.brand-text {
+		font-family: var(--font-mono);
+		font-size: 0.9rem;
+		font-weight: 600;
+		color: var(--text-bright);
+		letter-spacing: -0.02em;
+	}
+
+	.nav {
 		display: flex;
 		flex-direction: column;
-		gap: 0.2rem;
+		gap: 1px;
 	}
-	.nav-links a {
+
+	.nav-item {
 		display: flex;
 		align-items: center;
-		gap: 0.65rem;
-		padding: 0.55rem 0.75rem;
-		color: var(--text-muted);
+		gap: 0.5rem;
+		padding: 0.4rem 0.5rem;
+		font-size: 0.82rem;
+		color: var(--text-secondary);
 		text-decoration: none;
-		border-radius: 8px;
-		font-size: 0.9rem;
-		transition: all 0.2s ease;
-		position: relative;
+		border-radius: 6px;
+		transition: all var(--transition);
+		border: none;
+		background: none;
+		cursor: pointer;
+		width: 100%;
+		font-family: var(--font-sans);
 	}
-	.nav-links a:hover {
-		background: var(--bg-hover);
+
+	.nav-item:hover {
 		color: var(--text);
+		background: var(--bg-hover);
 	}
-	.nav-links a.active {
-		background: rgba(107, 70, 193, 0.15);
-		color: var(--purple-light);
+
+	.nav-item.active {
+		color: var(--text-bright);
+		background: var(--bg-raised);
+	}
+
+	.nav-key {
+		width: 18px;
+		height: 18px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		font-family: var(--font-mono);
+		font-size: 0.65rem;
 		font-weight: 600;
-		box-shadow: inset 3px 0 0 var(--purple);
+		color: var(--text-muted);
+		background: var(--bg);
+		border: 1px solid var(--border);
+		border-radius: 4px;
+		flex-shrink: 0;
 	}
-	.nav-icon {
-		font-size: 1rem;
-		width: 1.4rem;
-		text-align: center;
+
+	.active .nav-key {
+		background: var(--purple-muted);
+		border-color: var(--purple-dark);
+		color: var(--purple-light);
 	}
-	.nav-label {
-		flex: 1;
-	}
-	.sidebar-footer {
+
+	.sidebar-bottom {
 		margin-top: auto;
-		padding: 1rem 0.75rem 0;
+		padding-top: 0.75rem;
 		border-top: 1px solid var(--border);
 	}
-	.sidebar-tagline {
-		font-size: 0.7rem;
+
+	.lock-btn {
 		color: var(--text-muted);
-		opacity: 0.5;
-		text-align: center;
 	}
-	.content {
+
+	.main {
 		flex: 1;
-		padding: 2rem;
-		max-width: 1200px;
+		padding: 2rem 2.5rem;
+		max-width: 960px;
 	}
-	.auth-message {
+
+	/* Auth gate */
+	.auth-gate {
 		display: flex;
 		flex-direction: column;
 		align-items: center;
 		justify-content: center;
-		min-height: 60vh;
+		min-height: 50vh;
 		text-align: center;
-		gap: 1rem;
+		gap: 0.75rem;
 	}
-	.auth-icon {
-		font-size: 3rem;
-		opacity: 0.6;
-	}
-	.auth-message h2 {
+
+	.auth-gate h2 {
+		font-size: 1.1rem;
+		font-weight: 600;
 		color: var(--text-bright);
-		font-size: 1.4rem;
 	}
-	.auth-message p {
-		color: var(--text-muted);
-		font-size: 0.95rem;
-	}
-	.auth-cmd {
-		display: block;
-		font-family: var(--font-mono);
-		font-size: 1rem;
-		color: var(--gold);
-		background: var(--bg-card);
-		border: 1px solid var(--border);
-		padding: 0.75rem 1.5rem;
-		border-radius: 8px;
-	}
-	.auth-hint {
-		font-size: 0.85rem;
+
+	.auth-gate p {
+		color: var(--text-secondary);
+		font-size: 0.88rem;
 	}
 </style>

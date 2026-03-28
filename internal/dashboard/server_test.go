@@ -61,9 +61,16 @@ func buildMux(s *Server) http.Handler {
 	mux.HandleFunc("GET /api/vault/secrets", s.authMiddleware(s.handleListSecrets))
 	mux.HandleFunc("GET /api/vault/secrets/{key}", s.authMiddleware(s.handleGetSecret))
 	mux.HandleFunc("DELETE /api/vault/secrets/{key}", s.authMiddleware(s.handleDeleteSecret))
+	mux.HandleFunc("POST /api/vault/secrets", s.authMiddleware(s.handleCreateSecret))
+	mux.HandleFunc("GET /api/vault/secrets/{key}/reveal", s.authMiddleware(s.handleRevealSecret))
 	mux.HandleFunc("GET /api/aliases", s.authMiddleware(s.handleListAliases))
+	mux.HandleFunc("POST /api/aliases", s.authMiddleware(s.handleCreateAlias))
+	mux.HandleFunc("DELETE /api/aliases/{alias}", s.authMiddleware(s.handleDeleteAlias))
 	mux.HandleFunc("GET /api/projects", s.authMiddleware(s.handleListProjects))
+	mux.HandleFunc("POST /api/projects", s.authMiddleware(s.handleCreateProject))
+	mux.HandleFunc("DELETE /api/projects/{name}", s.authMiddleware(s.handleDeleteProject))
 	mux.HandleFunc("GET /api/health/overview", s.authMiddleware(s.handleHealthOverview))
+	mux.HandleFunc("GET /api/config", s.authMiddleware(s.handleGetConfig))
 	return s.corsHostMiddleware(mux)
 }
 

@@ -12,6 +12,10 @@ export function clearToken() {
 	sessionStorage.removeItem('vial_token');
 }
 
+export function hasToken() {
+	return !!getToken();
+}
+
 export async function apiFetch(path, options = {}) {
 	const token = getToken();
 	const res = await fetch(`${BASE}/api${path}`, {
@@ -30,43 +34,51 @@ export async function apiFetch(path, options = {}) {
 
 	if (!res.ok) {
 		const text = await res.text();
-		throw new Error(`API error ${res.status}: ${text}`);
+		throw new Error(`${res.status}: ${text.trim()}`);
 	}
 
 	return res.json();
 }
 
-export async function fetchSecrets() {
-	return apiFetch('/vault/secrets');
-}
-
-export async function fetchSecret(key) {
-	return apiFetch(`/vault/secrets/${encodeURIComponent(key)}`);
-}
-
-export async function deleteSecret(key) {
-	return apiFetch(`/vault/secrets/${encodeURIComponent(key)}`, { method: 'DELETE' });
-}
-
-export async function fetchAliases() {
-	return apiFetch('/aliases');
-}
-
-export async function fetchProjects() {
-	return apiFetch('/projects');
-}
-
-export async function fetchHealth() {
-	return apiFetch('/health/overview');
-}
-
-export async function unlockVault(password) {
-	return apiFetch('/auth/unlock', {
+// Vault secrets
+export const fetchSecrets = () => apiFetch('/vault/secrets');
+export const fetchSecret = (key) => apiFetch(`/vault/secrets/${encodeURIComponent(key)}`);
+export const revealSecret = (key) => apiFetch(`/vault/secrets/${encodeURIComponent(key)}?reveal=true`);
+export const deleteSecret = (key) =>
+	apiFetch(`/vault/secrets/${encodeURIComponent(key)}`, { method: 'DELETE' });
+export const createSecret = (key, value) =>
+	apiFetch('/vault/secrets', {
 		method: 'POST',
-		body: JSON.stringify({ password }),
+		body: JSON.stringify({ key, value }),
 	});
-}
 
-export async function lockVault() {
-	return apiFetch('/auth/lock', { method: 'POST' });
-}
+// Aliases
+export const fetchAliases = () => apiFetch('/aliases');
+export const createAlias = (alias, canonical) =>
+	apiFetch('/aliases', {
+		method: 'POST',
+		body: JSON.stringify({ alias, canonical }),
+	});
+export const deleteAlias = (alias) =>
+	apiFetch(`/aliases/${encodeURIComponent(alias)}`, { method: 'DELETE' });
+
+// Projects
+export const fetchProjects = () => apiFetch('/projects');
+export const addProject = (path) =>
+	apiFetch('/projects', {
+		method: 'POST',
+		body: JSON.stringify({ path }),
+	});
+export const removeProject = (name) =>
+	apiFetch(`/projects/${encodeURIComponent(name)}`, { method: 'DELETE' });
+
+// Health & audit
+export const fetchHealth = () => apiFetch('/health/overview');
+export const fetchAudit = () => apiFetch('/audit');
+
+// Config
+export const fetchConfig = () => apiFetch('/config');
+
+// Auth
+export const lockVault = () => apiFetch('/auth/lock', { method: 'POST' });
+export const authStatus = () => apiFetch('/auth/status');

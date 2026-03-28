@@ -1,10 +1,15 @@
 <script>
 	import { onMount } from 'svelte';
-	import { fetchAliases } from '$lib/api.js';
+	import { fetchAliases, createAlias, deleteAlias } from '$lib/api.js';
 
 	let aliases = $state([]);
 	let loading = $state(true);
 	let error = $state(null);
+	let showAdd = $state(false);
+	let newAlias = $state('');
+	let newCanonical = $state('');
+	let addError = $state('');
+	let toast = $state(null);
 
 	onMount(async () => {
 		try {
@@ -15,129 +20,111 @@
 			loading = false;
 		}
 	});
+
+	function showToast(msg) {
+		toast = msg;
+		setTimeout(() => (toast = null), 2500);
+	}
+
+	async function handleAdd() {
+		addError = '';
+		if (!newAlias.trim() || !newCanonical.trim()) { addError = 'Both fields required'; return; }
+		try {
+			await createAlias(newAlias.trim(), newCanonical.trim());
+			aliases = (await fetchAliases()) || [];
+			showAdd = false;
+			newAlias = '';
+			newCanonical = '';
+			showToast('Alias created');
+		} catch (e) {
+			addError = e.message;
+		}
+	}
+
+	async function handleDelete(alias) {
+		try {
+			await deleteAlias(alias);
+			aliases = aliases.filter((a) => a.alias !== alias);
+			showToast(`${alias} removed`);
+		} catch (e) {
+			error = e.message;
+		}
+	}
 </script>
 
 <div class="page">
-	<div class="page-header animate-in">
-		<h1>🏷️ Aliases</h1>
-		<p class="description">
-			Alias mappings allow variant key names to resolve to the same vault secret.
-		</p>
+	<div class="page-header">
+		<div>
+			<h1>Aliases</h1>
+			<p class="page-desc">Map variant key names to canonical vault keys</p>
+		</div>
+		<button class="btn btn-primary" onclick={() => (showAdd = true)}>Add Alias</button>
 	</div>
 
 	{#if loading}
-		<div class="loading-spinner">
-			<div class="spinner"></div>
-			<span class="loading-text">Loading aliases...</span>
-		</div>
+		<div class="loading-spinner"><div class="spinner"></div><span class="loading-text">Loading...</span></div>
 	{:else if error}
-		<p class="status error">{error}</p>
+		<p class="error-text">{error}</p>
 	{:else if aliases.length === 0}
-		<div class="empty-state animate-in">
-			<span class="empty-icon">🏷️</span>
-			<p class="empty-text">No aliases defined.</p>
-			<p class="empty-hint">Use <code>vial label set ALIAS=KEY</code> to create one.</p>
+		<div class="empty-state">
+			<span class="empty-icon">A</span>
+			<p>No aliases defined</p>
+			<p><code>vial label set ALIAS=KEY</code></p>
 		</div>
 	{:else}
 		<div class="alias-list">
 			{#each aliases as a, i}
-				<div class="alias-row card-glow animate-in stagger-{Math.min(i + 1, 10)}">
-					<span class="mono alias-from">{a.alias}</span>
-					<span class="arrow">→</span>
-					<span class="mono alias-to">{a.canonical}</span>
+				<div class="alias-row card animate-in stagger-{Math.min(i + 1, 10)}">
+					<span class="alias-from">{a.alias}</span>
+					<span class="arrow">&rarr;</span>
+					<span class="alias-to">{a.canonical}</span>
+					<button class="btn btn-sm btn-danger" onclick={() => handleDelete(a.alias)}>Remove</button>
 				</div>
 			{/each}
 		</div>
-		<p class="count animate-in">🏷️ {aliases.length} alias(es)</p>
 	{/if}
 </div>
 
-<style>
-	.page {
-		max-width: 700px;
-	}
-	.page-header {
-		margin-bottom: 1.5rem;
-	}
-	h1 {
-		color: var(--purple-light);
-		margin-bottom: 0.5rem;
-	}
-	.description {
-		color: var(--text-muted);
-		font-size: 0.9rem;
-	}
-	.alias-list {
-		display: flex;
-		flex-direction: column;
-		gap: 0.5rem;
-	}
-	.alias-row {
-		background: var(--bg-card);
-		border: 1px solid var(--border);
-		border-radius: 8px;
-		padding: 0.75rem 1rem;
-		display: flex;
-		align-items: center;
-		gap: 0.75rem;
-	}
-	.alias-from {
-		color: var(--text-muted);
-	}
-	.arrow {
-		color: var(--gold);
-		font-size: 1.1rem;
-		transition: transform 0.3s ease;
-	}
-	.alias-row:hover .arrow {
-		transform: translateX(3px);
-		color: var(--gold-light);
-	}
-	.alias-to {
-		color: var(--gold);
-	}
-	.count {
-		color: var(--text-muted);
-		font-size: 0.85rem;
-		margin-top: 1rem;
-	}
-	.status {
-		color: var(--text-muted);
-		padding: 2rem;
-		text-align: center;
-	}
-	.error {
-		color: var(--danger);
-	}
+{#if showAdd}
+	<div class="modal-backdrop" onclick={() => (showAdd = false)} role="presentation">
+		<div class="modal" onclick={(e) => e.stopPropagation()} role="dialog">
+			<h3>Create Alias</h3>
+			<div class="form-group">
+				<label class="form-label" for="alias-name">Alias Name</label>
+				<input id="alias-name" class="input input-mono" bind:value={newAlias} placeholder="OPENAI_KEY" />
+			</div>
+			<div class="form-group">
+				<label class="form-label" for="canonical-key">Maps To (vault key)</label>
+				<input id="canonical-key" class="input input-mono" bind:value={newCanonical} placeholder="OPENAI_API_KEY" />
+			</div>
+			{#if addError}
+				<p class="error-text" style="font-size: 0.82rem;">{addError}</p>
+			{/if}
+			<div class="modal-actions">
+				<button class="btn" onclick={() => (showAdd = false)}>Cancel</button>
+				<button class="btn btn-primary" onclick={handleAdd}>Create</button>
+			</div>
+		</div>
+	</div>
+{/if}
 
-	/* Empty state */
-	.empty-state {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		justify-content: center;
-		padding: 4rem 2rem;
-		text-align: center;
+{#if toast}
+	<div class="toast success">{toast}</div>
+{/if}
+
+<style>
+	.page { max-width: 700px; }
+	.page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5rem; }
+	h1 { font-size: 1.2rem; font-weight: 600; color: var(--text-bright); }
+	.page-desc { font-size: 0.78rem; color: var(--text-muted); margin-top: 0.2rem; }
+
+	.alias-list { display: flex; flex-direction: column; gap: 1px; }
+	.alias-row {
+		display: flex; align-items: center; gap: 0.75rem;
+		padding: 0.65rem 1rem;
 	}
-	.empty-icon {
-		font-size: 3rem;
-		margin-bottom: 1rem;
-		opacity: 0.7;
-	}
-	.empty-text {
-		color: var(--text-muted);
-		font-size: 1.1rem;
-		margin-bottom: 0.5rem;
-	}
-	.empty-hint {
-		color: var(--text-muted);
-		font-size: 0.85rem;
-		opacity: 0.7;
-	}
-	.empty-hint code {
-		background: var(--bg-hover);
-		padding: 0.15rem 0.4rem;
-		border-radius: 3px;
-		font-size: 0.8rem;
-	}
+	.alias-from { font-family: var(--font-mono); font-size: 0.82rem; color: var(--text-secondary); }
+	.arrow { color: var(--text-muted); font-size: 0.85rem; }
+	.alias-to { font-family: var(--font-mono); font-size: 0.82rem; color: var(--gold); flex: 1; }
+	.error-text { color: var(--danger); font-size: 0.85rem; }
 </style>

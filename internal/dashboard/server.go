@@ -17,9 +17,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/awnumar/memguard"
 	"github.com/charmbracelet/log"
 
 	"github.com/cheesejaguar/vial/internal/audit"
+	"github.com/cheesejaguar/vial/internal/config"
 	"github.com/cheesejaguar/vial/internal/project"
 	"github.com/cheesejaguar/vial/internal/vault"
 )
@@ -29,13 +31,14 @@ type Server struct {
 	vm       *vault.VaultManager
 	registry *project.Registry
 	auditLog *audit.Log
+	cfg      *config.Config
 	token    string
 	logger   *log.Logger
 	port     int
 }
 
 // NewServer creates a new dashboard server.
-func NewServer(vm *vault.VaultManager, registry *project.Registry, port int, logger *log.Logger) (*Server, error) {
+func NewServer(vm *vault.VaultManager, registry *project.Registry, port int, logger *log.Logger, opts ...ServerOption) (*Server, error) {
 	token, err := generateToken()
 	if err != nil {
 		return nil, fmt.Errorf("generating session token: %w", err)
@@ -44,14 +47,28 @@ func NewServer(vm *vault.VaultManager, registry *project.Registry, port int, log
 	auditPath := filepath.Join(filepath.Dir(vm.Path()), "audit.jsonl")
 	auditLog := audit.NewLog(auditPath)
 
-	return &Server{
+	s := &Server{
 		vm:       vm,
 		registry: registry,
 		auditLog: auditLog,
 		token:    token,
 		logger:   logger,
 		port:     port,
-	}, nil
+	}
+	for _, opt := range opts {
+		opt(s)
+	}
+	return s, nil
+}
+
+// ServerOption configures optional Server fields.
+type ServerOption func(*Server)
+
+// WithConfig attaches application config for the /api/config endpoint.
+func WithConfig(cfg *config.Config) ServerOption {
+	return func(s *Server) {
+		s.cfg = cfg
+	}
 }
 
 // Token returns the session token for the dashboard.
@@ -71,8 +88,15 @@ func (s *Server) Start() error {
 	mux.HandleFunc("DELETE /api/vault/secrets/{key}", s.authMiddleware(s.handleDeleteSecret))
 	mux.HandleFunc("GET /api/aliases", s.authMiddleware(s.handleListAliases))
 	mux.HandleFunc("GET /api/projects", s.authMiddleware(s.handleListProjects))
+	mux.HandleFunc("POST /api/vault/secrets", s.authMiddleware(s.handleCreateSecret))
+	mux.HandleFunc("GET /api/vault/secrets/{key}/reveal", s.authMiddleware(s.handleRevealSecret))
 	mux.HandleFunc("GET /api/health/overview", s.authMiddleware(s.handleHealthOverview))
 	mux.HandleFunc("GET /api/audit", s.authMiddleware(s.handleAudit))
+	mux.HandleFunc("POST /api/projects", s.authMiddleware(s.handleCreateProject))
+	mux.HandleFunc("DELETE /api/projects/{name}", s.authMiddleware(s.handleDeleteProject))
+	mux.HandleFunc("POST /api/aliases", s.authMiddleware(s.handleCreateAlias))
+	mux.HandleFunc("DELETE /api/aliases/{alias}", s.authMiddleware(s.handleDeleteAlias))
+	mux.HandleFunc("GET /api/config", s.authMiddleware(s.handleGetConfig))
 
 	// Serve embedded SPA
 	staticFS, err := fs.Sub(frontendFS, "static")
@@ -345,6 +369,183 @@ func (s *Server) handleAudit(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 	writeJSON(w, result)
+}
+
+func (s *Server) handleCreateSecret(w http.ResponseWriter, r *http.Request) {
+	if !s.vm.IsUnlocked() {
+		http.Error(w, "vault is locked", http.StatusForbidden)
+		return
+	}
+
+	var req struct {
+		Key   string `json:"key"`
+		Value string `json:"value"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid JSON body", http.StatusBadRequest)
+		return
+	}
+	if req.Key == "" {
+		http.Error(w, "key is required", http.StatusBadRequest)
+		return
+	}
+
+	buf := memguard.NewBufferFromBytes([]byte(req.Value))
+	if err := s.vm.SetSecret(req.Key, buf); err != nil {
+		buf.Destroy()
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	buf.Destroy()
+
+	w.WriteHeader(http.StatusCreated)
+	writeJSON(w, map[string]any{"status": "created", "key": req.Key})
+}
+
+func (s *Server) handleRevealSecret(w http.ResponseWriter, r *http.Request) {
+	if !s.vm.IsUnlocked() {
+		http.Error(w, "vault is locked", http.StatusForbidden)
+		return
+	}
+
+	key := r.PathValue("key")
+	val, err := s.vm.GetSecret(key)
+	if err != nil {
+		http.Error(w, "secret not found", http.StatusNotFound)
+		return
+	}
+	defer val.Destroy()
+
+	writeJSON(w, map[string]any{"key": key, "value": string(val.Bytes())})
+}
+
+func (s *Server) handleCreateProject(w http.ResponseWriter, r *http.Request) {
+	if s.registry == nil {
+		http.Error(w, "project registry not configured", http.StatusInternalServerError)
+		return
+	}
+
+	var req struct {
+		Path string `json:"path"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid JSON body", http.StatusBadRequest)
+		return
+	}
+	if req.Path == "" {
+		http.Error(w, "path is required", http.StatusBadRequest)
+		return
+	}
+
+	proj, err := s.registry.Add(req.Path)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
+	writeJSON(w, map[string]any{
+		"name":     proj.Name,
+		"path":     proj.Path,
+		"added_at": proj.AddedAt.Format(time.RFC3339),
+	})
+}
+
+func (s *Server) handleDeleteProject(w http.ResponseWriter, r *http.Request) {
+	if s.registry == nil {
+		http.Error(w, "project registry not configured", http.StatusInternalServerError)
+		return
+	}
+
+	name := r.PathValue("name")
+	if err := s.registry.Remove(name); err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+	writeJSON(w, map[string]any{"status": "removed", "name": name})
+}
+
+func (s *Server) handleCreateAlias(w http.ResponseWriter, r *http.Request) {
+	if !s.vm.IsUnlocked() {
+		http.Error(w, "vault is locked", http.StatusForbidden)
+		return
+	}
+
+	var req struct {
+		Alias     string `json:"alias"`
+		Canonical string `json:"canonical"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid JSON body", http.StatusBadRequest)
+		return
+	}
+	if req.Alias == "" || req.Canonical == "" {
+		http.Error(w, "alias and canonical are required", http.StatusBadRequest)
+		return
+	}
+
+	meta, err := s.vm.GetMetadata(req.Canonical)
+	if err != nil {
+		http.Error(w, "canonical key not found", http.StatusNotFound)
+		return
+	}
+
+	// Check if alias already exists
+	for _, a := range meta.Aliases {
+		if a == req.Alias {
+			writeJSON(w, map[string]any{"status": "created"})
+			return
+		}
+	}
+
+	meta.Aliases = append(meta.Aliases, req.Alias)
+	if err := s.vm.SetMetadata(req.Canonical, *meta); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
+	writeJSON(w, map[string]any{"status": "created"})
+}
+
+func (s *Server) handleDeleteAlias(w http.ResponseWriter, r *http.Request) {
+	if !s.vm.IsUnlocked() {
+		http.Error(w, "vault is locked", http.StatusForbidden)
+		return
+	}
+
+	alias := r.PathValue("alias")
+	secrets := s.vm.ListSecrets()
+
+	for _, sec := range secrets {
+		for i, a := range sec.Metadata.Aliases {
+			if a == alias {
+				meta := sec.Metadata
+				meta.Aliases = append(meta.Aliases[:i], meta.Aliases[i+1:]...)
+				if err := s.vm.SetMetadata(sec.Key, meta); err != nil {
+					http.Error(w, err.Error(), http.StatusInternalServerError)
+					return
+				}
+				writeJSON(w, map[string]any{"status": "removed"})
+				return
+			}
+		}
+	}
+
+	http.Error(w, "alias not found", http.StatusNotFound)
+}
+
+func (s *Server) handleGetConfig(w http.ResponseWriter, r *http.Request) {
+	if s.cfg == nil {
+		writeJSON(w, map[string]any{})
+		return
+	}
+	writeJSON(w, map[string]any{
+		"vault_path":      s.cfg.VaultPath,
+		"session_timeout": s.cfg.SessionTimeout.String(),
+		"env_example":     s.cfg.EnvExample,
+		"log_level":       s.cfg.LogLevel,
+	})
 }
 
 // serveStaticFile serves a file from the embedded FS with correct MIME types.

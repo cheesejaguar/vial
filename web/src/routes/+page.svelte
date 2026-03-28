@@ -1,6 +1,6 @@
 <script>
 	import { onMount } from 'svelte';
-	import { fetchSecrets, deleteSecret } from '$lib/api.js';
+	import { fetchSecrets, deleteSecret, createSecret, revealSecret } from '$lib/api.js';
 	import {
 		secrets,
 		searchQuery,
@@ -11,6 +11,12 @@
 
 	let loading = $state(true);
 	let error = $state(null);
+	let showAdd = $state(false);
+	let newKey = $state('');
+	let newValue = $state('');
+	let addError = $state('');
+	let revealedKeys = $state({});
+	let toast = $state(null);
 
 	onMount(async () => {
 		try {
@@ -23,28 +29,73 @@
 		}
 	});
 
-	function maskValue(val) {
-		if (!val || val.length <= 12) return '••••••••';
-		return val.substring(0, 4) + '•••' + val.substring(val.length - 4);
+	function showToast(msg, type = 'success') {
+		toast = { msg, type };
+		setTimeout(() => (toast = null), 2500);
+	}
+
+	async function handleAdd() {
+		addError = '';
+		if (!newKey.trim()) { addError = 'Key name is required'; return; }
+		if (!newValue.trim()) { addError = 'Value is required'; return; }
+		try {
+			await createSecret(newKey.trim(), newValue.trim());
+			const data = await fetchSecrets();
+			secrets.set(data || []);
+			showAdd = false;
+			newKey = '';
+			newValue = '';
+			showToast(`${newKey.trim()} added`);
+		} catch (e) {
+			addError = e.message;
+		}
 	}
 
 	async function handleDelete(key) {
-		if (!confirm(`Delete "${key}" from vault?`)) return;
+		if (!confirm(`Delete "${key}"?`)) return;
 		try {
 			await deleteSecret(key);
 			secrets.update((s) => s.filter((sec) => sec.key !== key));
+			showToast(`${key} deleted`);
 		} catch (e) {
 			error = e.message;
 		}
 	}
+
+	async function handleReveal(key) {
+		if (revealedKeys[key]) {
+			revealedKeys = { ...revealedKeys, [key]: null };
+			return;
+		}
+		try {
+			const data = await revealSecret(key);
+			revealedKeys = { ...revealedKeys, [key]: data.value };
+		} catch (e) {
+			showToast(`Failed to reveal: ${e.message}`, 'error');
+		}
+	}
+
+	function mask(val) {
+		if (!val || val.length <= 12) return '\u2022'.repeat(12);
+		return val.substring(0, 4) + '\u2022'.repeat(6) + val.substring(val.length - 4);
+	}
 </script>
 
 <div class="page">
-	<div class="header">
-		<h1>🔑 Secrets</h1>
-		<div class="search">
-			<span class="search-icon">🔍</span>
-			<input type="text" placeholder="Search keys..." bind:value={$searchQuery} />
+	<div class="page-header">
+		<div>
+			<h1>Secrets</h1>
+			<p class="page-desc">{$filteredSecrets.length} key{$filteredSecrets.length !== 1 ? 's' : ''} in vault</p>
+		</div>
+		<div class="header-actions">
+			<input
+				class="input"
+				type="text"
+				placeholder="Filter..."
+				bind:value={$searchQuery}
+				style="width: 180px;"
+			/>
+			<button class="btn btn-primary" onclick={() => (showAdd = true)}>Add Secret</button>
 		</div>
 	</div>
 
@@ -68,217 +119,114 @@
 	{#if loading}
 		<div class="loading-spinner">
 			<div class="spinner"></div>
-			<span class="loading-text">Unlocking secrets...</span>
+			<span class="loading-text">Loading...</span>
 		</div>
 	{:else if error}
-		<p class="status error">{error}</p>
+		<p class="error-text">{error}</p>
 	{:else if $filteredSecrets.length === 0}
-		<div class="empty-state animate-in">
-			<span class="empty-icon">🔐</span>
-			<p class="empty-text">No secrets found.</p>
-			<p class="empty-hint">Add secrets with <code>vial key set NAME</code></p>
+		<div class="empty-state">
+			<span class="empty-icon">K</span>
+			<p>No secrets stored</p>
+			<p><code>vial key set NAME</code></p>
 		</div>
 	{:else}
 		<div class="secret-list">
 			{#each $filteredSecrets as secret, i}
-				<div class="secret-card card-glow animate-in stagger-{Math.min(i + 1, 10)}">
-					<div class="secret-header">
-						<span class="secret-key mono">{secret.key}</span>
-						<div class="secret-actions">
-							<button class="btn-sm btn-danger" onclick={() => handleDelete(secret.key)}>
-								🗑️ Delete
-							</button>
-						</div>
-					</div>
-					<div class="secret-meta">
+				<div class="secret-row card animate-in stagger-{Math.min(i + 1, 10)}">
+					<div class="secret-main">
+						<span class="secret-key">{secret.key}</span>
 						{#if secret.aliases && secret.aliases.length > 0}
-							<span class="meta-item">🏷️ {secret.aliases.join(', ')}</span>
+							{#each secret.aliases as a}
+								<span class="badge">{a}</span>
+							{/each}
 						{/if}
 						{#if secret.tags && secret.tags.length > 0}
-							<span class="meta-item">
-								{#each secret.tags as tag}
-									<span class="badge">{tag}</span>
-								{/each}
-							</span>
+							{#each secret.tags as tag}
+								<span class="badge badge-gold">{tag}</span>
+							{/each}
 						{/if}
-						{#if secret.added}
-							<span class="meta-item">📅 {new Date(secret.added).toLocaleDateString()}</span>
+					</div>
+					<div class="secret-value">
+						{#if revealedKeys[secret.key]}
+							<code class="revealed">{revealedKeys[secret.key]}</code>
+						{:else}
+							<span class="masked">{mask('')}</span>
 						{/if}
+					</div>
+					<div class="secret-actions">
+						<button class="btn btn-sm" onclick={() => handleReveal(secret.key)}>
+							{revealedKeys[secret.key] ? 'Hide' : 'Reveal'}
+						</button>
+						<button class="btn btn-sm btn-danger" onclick={() => handleDelete(secret.key)}>
+							Delete
+						</button>
 					</div>
 				</div>
 			{/each}
 		</div>
-		<p class="count animate-in">🔐 {$filteredSecrets.length} secret(s)</p>
 	{/if}
 </div>
 
-<style>
-	.page {
-		max-width: 900px;
-	}
-	.header {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		margin-bottom: 1.5rem;
-		animation: slideUp 0.4s ease;
-	}
-	h1 {
-		font-size: 1.5rem;
-		color: var(--purple-light);
-	}
-	.search {
-		position: relative;
-		display: flex;
-		align-items: center;
-	}
-	.search-icon {
-		position: absolute;
-		left: 0.75rem;
-		font-size: 0.85rem;
-		opacity: 0.5;
-		pointer-events: none;
-	}
-	.search input {
-		background: var(--bg-card);
-		border: 1px solid var(--border);
-		color: var(--text);
-		padding: 0.5rem 1rem 0.5rem 2.2rem;
-		border-radius: 8px;
-		font-size: 0.9rem;
-		width: 260px;
-		transition: all 0.25s ease;
-	}
-	.search input:focus {
-		outline: none;
-		border-color: var(--purple);
-		box-shadow: var(--glow-purple);
-	}
-	.tags {
-		display: flex;
-		gap: 0.5rem;
-		margin-bottom: 1rem;
-		flex-wrap: wrap;
-		animation: fadeIn 0.4s ease;
-	}
-	.tag {
-		background: var(--bg-card);
-		border: 1px solid var(--border);
-		color: var(--text-muted);
-		padding: 0.25rem 0.75rem;
-		border-radius: 12px;
-		font-size: 0.8rem;
-		cursor: pointer;
-		transition: all 0.2s ease;
-	}
-	.tag:hover {
-		border-color: var(--purple-dark);
-		color: var(--text);
-	}
-	.tag.active {
-		background: var(--purple);
-		color: white;
-		border-color: var(--purple);
-		box-shadow: var(--glow-purple);
-	}
-	.secret-list {
-		display: flex;
-		flex-direction: column;
-		gap: 0.75rem;
-	}
-	.secret-card {
-		background: var(--bg-card);
-		border: 1px solid var(--border);
-		border-radius: 10px;
-		padding: 1rem 1.25rem;
-	}
-	.secret-header {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-	}
-	.secret-key {
-		font-size: 0.95rem;
-		color: var(--gold);
-	}
-	.secret-meta {
-		margin-top: 0.5rem;
-		display: flex;
-		gap: 1rem;
-		flex-wrap: wrap;
-	}
-	.meta-item {
-		font-size: 0.8rem;
-		color: var(--text-muted);
-	}
-	.badge {
-		background: var(--purple-dark);
-		color: var(--purple-light);
-		padding: 0.1rem 0.5rem;
-		border-radius: 4px;
-		font-size: 0.75rem;
-		margin-right: 0.25rem;
-	}
-	.btn-sm {
-		padding: 0.3rem 0.6rem;
-		border-radius: 6px;
-		border: none;
-		font-size: 0.78rem;
-		cursor: pointer;
-		transition: all 0.2s ease;
-	}
-	.btn-danger {
-		background: transparent;
-		color: var(--danger);
-		border: 1px solid var(--danger);
-	}
-	.btn-danger:hover {
-		background: var(--danger);
-		color: var(--bg);
-		box-shadow: var(--glow-danger);
-	}
-	.status {
-		color: var(--text-muted);
-		padding: 2rem;
-		text-align: center;
-	}
-	.error {
-		color: var(--danger);
-	}
-	.count {
-		color: var(--text-muted);
-		font-size: 0.85rem;
-		margin-top: 1rem;
-	}
+{#if showAdd}
+	<div class="modal-backdrop" onclick={() => (showAdd = false)} role="presentation">
+		<div class="modal" onclick={(e) => e.stopPropagation()} role="dialog">
+			<h3>Add Secret</h3>
+			<div class="form-group">
+				<label class="form-label" for="new-key">Key Name</label>
+				<input id="new-key" class="input input-mono" bind:value={newKey} placeholder="OPENAI_API_KEY" />
+			</div>
+			<div class="form-group">
+				<label class="form-label" for="new-value">Value</label>
+				<input id="new-value" class="input input-mono" type="password" bind:value={newValue} placeholder="sk-..." />
+			</div>
+			{#if addError}
+				<p class="error-text" style="font-size: 0.82rem; margin-top: 0.5rem;">{addError}</p>
+			{/if}
+			<div class="modal-actions">
+				<button class="btn" onclick={() => (showAdd = false)}>Cancel</button>
+				<button class="btn btn-primary" onclick={handleAdd}>Add</button>
+			</div>
+		</div>
+	</div>
+{/if}
 
-	/* Empty state */
-	.empty-state {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		justify-content: center;
-		padding: 4rem 2rem;
-		text-align: center;
+{#if toast}
+	<div class="toast {toast.type}">{toast.msg}</div>
+{/if}
+
+<style>
+	.page { max-width: 800px; }
+	.page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5rem; }
+	h1 { font-size: 1.2rem; font-weight: 600; color: var(--text-bright); }
+	.page-desc { font-size: 0.78rem; color: var(--text-muted); margin-top: 0.2rem; }
+	.header-actions { display: flex; gap: 0.5rem; align-items: center; }
+
+	.tags { display: flex; gap: 0.35rem; margin-bottom: 1.25rem; flex-wrap: wrap; }
+	.tag {
+		font-size: 0.75rem; padding: 0.2rem 0.6rem; border-radius: 4px;
+		background: var(--bg-raised); border: 1px solid var(--border); color: var(--text-secondary);
+		cursor: pointer; transition: all var(--transition);
 	}
-	.empty-icon {
-		font-size: 3rem;
-		margin-bottom: 1rem;
-		opacity: 0.7;
+	.tag:hover { color: var(--text); border-color: var(--text-muted); }
+	.tag.active { background: var(--purple-muted); border-color: var(--purple-dark); color: var(--purple-light); }
+
+	.secret-list { display: flex; flex-direction: column; gap: 1px; }
+	.secret-row {
+		display: grid; grid-template-columns: 1fr auto auto;
+		align-items: center; gap: 1rem;
+		padding: 0.75rem 1rem;
 	}
-	.empty-text {
-		color: var(--text-muted);
-		font-size: 1.1rem;
-		margin-bottom: 0.5rem;
+	.secret-main { display: flex; align-items: center; gap: 0.5rem; min-width: 0; }
+	.secret-key {
+		font-family: var(--font-mono); font-size: 0.85rem; font-weight: 500;
+		color: var(--text-bright); white-space: nowrap;
 	}
-	.empty-hint {
-		color: var(--text-muted);
-		font-size: 0.85rem;
-		opacity: 0.7;
+	.secret-value {
+		font-family: var(--font-mono); font-size: 0.78rem; color: var(--text-muted);
 	}
-	.empty-hint code {
-		background: var(--bg-hover);
-		padding: 0.15rem 0.4rem;
-		border-radius: 3px;
-		font-size: 0.8rem;
-	}
+	.revealed { font-size: 0.78rem; background: var(--gold-muted); word-break: break-all; }
+	.masked { letter-spacing: 0.1em; }
+	.secret-actions { display: flex; gap: 0.35rem; }
+
+	.error-text { color: var(--danger); font-size: 0.85rem; }
 </style>

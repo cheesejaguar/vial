@@ -41,7 +41,7 @@ func runDashboard(cmd *cobra.Command, args []string) error {
 	reg := project.NewRegistry(regPath)
 	reg.Load()
 
-	srv, err := dashboard.NewServer(vm, reg, dashboardPort, logger)
+	srv, err := dashboard.NewServer(vm, reg, dashboardPort, logger, dashboard.WithConfig(cfg))
 	if err != nil {
 		return err
 	}
