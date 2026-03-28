@@ -167,9 +167,18 @@
 		text-align: center;
 		gap: 1rem;
 	}
-	.auth-icon { font-size: 3rem; opacity: 0.6; }
-	.auth-message h2 { color: var(--text-bright); font-size: 1.4rem; }
-	.auth-message p { color: var(--text-muted); font-size: 0.95rem; }
+	.auth-icon {
+		font-size: 3rem;
+		opacity: 0.6;
+	}
+	.auth-message h2 {
+		color: var(--text-bright);
+		font-size: 1.4rem;
+	}
+	.auth-message p {
+		color: var(--text-muted);
+		font-size: 0.95rem;
+	}
 	.auth-cmd {
 		display: block;
 		font-family: var(--font-mono);
@@ -180,5 +189,7 @@
 		padding: 0.75rem 1.5rem;
 		border-radius: 8px;
 	}
-	.auth-hint { font-size: 0.85rem; }
+	.auth-hint {
+		font-size: 0.85rem;
+	}
 </style>
