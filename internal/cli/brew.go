@@ -37,6 +37,13 @@ func init() {
 }
 
 func runBrew(cmd *cobra.Command, args []string) error {
+	// DisableFlagParsing means we must handle --help ourselves
+	for _, a := range args {
+		if a == "--help" || a == "-h" {
+			return cmd.Help()
+		}
+	}
+
 	// Strip leading -- if present
 	if len(args) > 0 && args[0] == "--" {
 		args = args[1:]

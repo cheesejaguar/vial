@@ -132,6 +132,12 @@ func OpenBundle(bundle *Bundle, passphrase string) (*BundlePayload, error) {
 		return nil, fmt.Errorf("parsing payload: %w", err)
 	}
 
+	// Verify expiry from the authenticated (encrypted) payload,
+	// not just the outer unauthenticated envelope
+	if !payload.ExpiresAt.IsZero() && time.Now().UTC().After(payload.ExpiresAt) {
+		return nil, fmt.Errorf("bundle expired at %s (verified from encrypted payload)", payload.ExpiresAt.Format(time.RFC3339))
+	}
+
 	return &payload, nil
 }
 

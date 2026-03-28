@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cheesejaguar/vial/internal/audit"
 	"github.com/cheesejaguar/vial/internal/vault"
 )
 
@@ -14,11 +15,12 @@ import (
 type ToolRegistry struct {
 	vm          *vault.VaultManager
 	allowWrites bool
+	auditLog    *audit.Log
 }
 
 // NewToolRegistry creates a new tool registry.
-func NewToolRegistry(vm *vault.VaultManager, allowWrites bool) *ToolRegistry {
-	return &ToolRegistry{vm: vm, allowWrites: allowWrites}
+func NewToolRegistry(vm *vault.VaultManager, allowWrites bool, auditLog *audit.Log) *ToolRegistry {
+	return &ToolRegistry{vm: vm, allowWrites: allowWrites, auditLog: auditLog}
 }
 
 // ListTools returns all available tool definitions.
@@ -167,6 +169,10 @@ func (r *ToolRegistry) handleGet(args map[string]interface{}) *CallToolResult {
 	result := string(val.Bytes())
 	val.Destroy()
 
+	if r.auditLog != nil {
+		r.auditLog.Record(audit.EventGet, []string{key}, "", "via MCP")
+	}
+
 	return textResult(result)
 }
 
@@ -248,6 +254,10 @@ func (r *ToolRegistry) handleSet(args map[string]interface{}) *CallToolResult {
 		return errorResult(fmt.Sprintf("storing %s: %v", key, err))
 	}
 
+	if r.auditLog != nil {
+		r.auditLog.Record(audit.EventSet, []string{key}, "", "via MCP")
+	}
+
 	return textResult(fmt.Sprintf("✓ Stored %s", key))
 }
 
@@ -259,6 +269,10 @@ func (r *ToolRegistry) handleRemove(args map[string]interface{}) *CallToolResult
 
 	if err := r.vm.RemoveSecret(key); err != nil {
 		return errorResult(fmt.Sprintf("removing %s: %v", key, err))
+	}
+
+	if r.auditLog != nil {
+		r.auditLog.Record(audit.EventRemove, []string{key}, "", "via MCP")
 	}
 
 	return textResult(fmt.Sprintf("✓ Removed %s", key))

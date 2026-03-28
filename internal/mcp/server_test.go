@@ -12,7 +12,7 @@ func TestServerInitialize(t *testing.T) {
 	output := &bytes.Buffer{}
 
 	server := &Server{
-		tools:  NewToolRegistry(nil, false),
+		tools:  NewToolRegistry(nil, false, nil),
 		input:  strings.NewReader(input),
 		output: output,
 	}
@@ -50,7 +50,7 @@ func TestServerToolsList(t *testing.T) {
 	output := &bytes.Buffer{}
 
 	server := &Server{
-		tools:  NewToolRegistry(nil, false),
+		tools:  NewToolRegistry(nil, false, nil),
 		input:  strings.NewReader(input),
 		output: output,
 	}
@@ -77,7 +77,7 @@ func TestServerToolsList(t *testing.T) {
 	input2 := `{"jsonrpc":"2.0","id":3,"method":"tools/list"}` + "\n"
 	output2 := &bytes.Buffer{}
 	server2 := &Server{
-		tools:  NewToolRegistry(nil, true),
+		tools:  NewToolRegistry(nil, true, nil),
 		input:  strings.NewReader(input2),
 		output: output2,
 	}
@@ -99,7 +99,7 @@ func TestServerPing(t *testing.T) {
 	output := &bytes.Buffer{}
 
 	server := &Server{
-		tools:  NewToolRegistry(nil, false),
+		tools:  NewToolRegistry(nil, false, nil),
 		input:  strings.NewReader(input),
 		output: output,
 	}
@@ -119,7 +119,7 @@ func TestServerUnknownMethod(t *testing.T) {
 	output := &bytes.Buffer{}
 
 	server := &Server{
-		tools:  NewToolRegistry(nil, false),
+		tools:  NewToolRegistry(nil, false, nil),
 		input:  strings.NewReader(input),
 		output: output,
 	}

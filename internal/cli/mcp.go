@@ -4,8 +4,11 @@ import (
 	"fmt"
 	"os"
 
+	"path/filepath"
+
 	"github.com/spf13/cobra"
 
+	"github.com/cheesejaguar/vial/internal/audit"
 	"github.com/cheesejaguar/vial/internal/mcp"
 )
 
@@ -59,6 +62,13 @@ func runMCP(cmd *cobra.Command, args []string) error {
 		fmt.Fprintln(os.Stderr, "vial: MCP server starting (read-only mode)")
 	}
 
-	server := mcp.NewServer(vm, mcpAllowWrites)
+	if err := loadConfig(); err != nil {
+		return err
+	}
+
+	auditPath := filepath.Join(filepath.Dir(cfg.VaultPath), "audit.jsonl")
+	auditLog := audit.NewLog(auditPath)
+
+	server := mcp.NewServer(vm, mcpAllowWrites, auditLog)
 	return server.Serve()
 }

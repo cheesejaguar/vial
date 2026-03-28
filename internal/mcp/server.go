@@ -8,6 +8,7 @@ import (
 	"os"
 
 	"github.com/awnumar/memguard"
+	"github.com/cheesejaguar/vial/internal/audit"
 	"github.com/cheesejaguar/vial/internal/vault"
 )
 
@@ -25,9 +26,9 @@ type Server struct {
 }
 
 // NewServer creates a new MCP server.
-func NewServer(vm *vault.VaultManager, allowWrites bool) *Server {
+func NewServer(vm *vault.VaultManager, allowWrites bool, auditLog *audit.Log) *Server {
 	return &Server{
-		tools:  NewToolRegistry(vm, allowWrites),
+		tools:  NewToolRegistry(vm, allowWrites, auditLog),
 		input:  os.Stdin,
 		output: os.Stdout,
 	}

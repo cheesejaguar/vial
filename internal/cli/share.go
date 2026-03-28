@@ -129,8 +129,8 @@ func runShare(cmd *cobra.Command, args []string) error {
 	}
 	defer passphrase.Destroy()
 
-	if passphrase.Size() < 4 {
-		return fmt.Errorf("passphrase too short (minimum 4 characters)")
+	if passphrase.Size() < 12 {
+		return fmt.Errorf("passphrase too short (minimum 12 characters)")
 	}
 
 	// Create bundle
