@@ -211,7 +211,8 @@ func (v *VaultManager) SetSecret(key string, value *memguard.LockedBuffer) error
 			entry.Aliases = existing.Aliases
 			entry.Provider = existing.Provider
 			entry.Tags = existing.Tags
-			entry.Added = existing.Added // keep original add time
+			entry.Added = existing.Added         // keep original add time
+			entry.RotationDays = existing.RotationDays // keep rotation policy
 		}
 
 		vf.Keys[key] = entry
@@ -272,11 +273,12 @@ func (v *VaultManager) ListSecrets() []SecretInfo {
 		infos = append(infos, SecretInfo{
 			Key: key,
 			Metadata: SecretMetadata{
-				Aliases:  entry.Aliases,
-				Provider: entry.Provider,
-				Tags:     entry.Tags,
-				Added:    added,
-				Rotated:  rotated,
+				Aliases:      entry.Aliases,
+				Provider:     entry.Provider,
+				Tags:         entry.Tags,
+				Added:        added,
+				Rotated:      rotated,
+				RotationDays: entry.RotationDays,
 			},
 		})
 	}
@@ -320,11 +322,12 @@ func (v *VaultManager) GetMetadata(key string) (*SecretMetadata, error) {
 	rotated, _ := time.Parse(time.RFC3339, entry.Rotated)
 
 	return &SecretMetadata{
-		Aliases:  entry.Aliases,
-		Provider: entry.Provider,
-		Tags:     entry.Tags,
-		Added:    added,
-		Rotated:  rotated,
+		Aliases:      entry.Aliases,
+		Provider:     entry.Provider,
+		Tags:         entry.Tags,
+		Added:        added,
+		Rotated:      rotated,
+		RotationDays: entry.RotationDays,
 	}, nil
 }
 
@@ -348,6 +351,7 @@ func (v *VaultManager) SetMetadata(key string, meta SecretMetadata) error {
 		entry.Aliases = meta.Aliases
 		entry.Provider = meta.Provider
 		entry.Tags = meta.Tags
+		entry.RotationDays = meta.RotationDays
 		vf.Keys[key] = entry
 		return WriteVaultFile(v.path, vf)
 	})

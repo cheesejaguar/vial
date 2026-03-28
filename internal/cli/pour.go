@@ -10,6 +10,7 @@ import (
 	"golang.org/x/term"
 
 	"github.com/cheesejaguar/vial/internal/alias"
+	"github.com/cheesejaguar/vial/internal/audit"
 	"github.com/cheesejaguar/vial/internal/matcher"
 	"github.com/cheesejaguar/vial/internal/parser"
 	"github.com/cheesejaguar/vial/internal/vault"
@@ -233,5 +234,13 @@ func pourProject(vm *vault.VaultManager, dir string) error {
 
 	total := matched + skipped
 	fmt.Printf("  → .env written with %d/%d keys populated\n", total, len(keysNeeded))
+
+	// Record audit event
+	var matchedKeys []string
+	for k := range resolved {
+		matchedKeys = append(matchedKeys, k)
+	}
+	recordAudit(audit.EventPour, matchedKeys, dir, fmt.Sprintf("%d/%d keys", total, len(keysNeeded)))
+
 	return nil
 }

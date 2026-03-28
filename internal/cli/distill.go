@@ -10,7 +10,9 @@ import (
 	"github.com/charmbracelet/huh"
 	"github.com/spf13/cobra"
 
+	"github.com/cheesejaguar/vial/internal/importer"
 	"github.com/cheesejaguar/vial/internal/parser"
+	"github.com/cheesejaguar/vial/internal/vault"
 )
 
 var distillCmd = &cobra.Command{
@@ -25,11 +27,13 @@ var distillCmd = &cobra.Command{
 var (
 	distillOverwrite bool
 	distillAll       bool
+	distillFrom      string
 )
 
 func init() {
 	distillCmd.Flags().BoolVar(&distillOverwrite, "overwrite", false, "Overwrite existing vault keys without prompting")
 	distillCmd.Flags().BoolVar(&distillAll, "all", false, "Import all keys without interactive selection")
+	distillCmd.Flags().StringVar(&distillFrom, "from", "", "Import source: 1password, doppler, vercel, json")
 	rootCmd.AddCommand(distillCmd)
 }
 
@@ -45,6 +49,11 @@ func runDistill(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	defer vm.Lock()
+
+	// Handle external import sources
+	if distillFrom != "" {
+		return runDistillFromExternal(vm, distillFrom, args)
+	}
 
 	envFile := ".env"
 	if len(args) > 0 {
@@ -198,5 +207,58 @@ func runDistill(cmd *cobra.Command, args []string) error {
 	}
 
 	fmt.Printf("\n→ %d key(s) imported\n", imported)
+	return nil
+}
+
+func runDistillFromExternal(vm *vault.VaultManager, source string, args []string) error {
+	backend, err := importer.GetBackend(source)
+	if err != nil {
+		return err
+	}
+
+	if !backend.Available() {
+		return fmt.Errorf("%s CLI is not installed", source)
+	}
+
+	fmt.Printf("Importing from %s...\n", source)
+	secrets, err := backend.Import(args)
+	if err != nil {
+		return err
+	}
+
+	if len(secrets) == 0 {
+		fmt.Println("No secrets found.")
+		return nil
+	}
+
+	fmt.Printf("Found %d secret(s)\n", len(secrets))
+
+	imported := 0
+	for _, s := range secrets {
+		// Check if already exists
+		existing, existErr := vm.GetSecret(s.Key)
+		if existErr == nil {
+			existingVal := string(existing.Bytes())
+			existing.Destroy()
+			if existingVal == s.Value {
+				continue // same value, skip
+			}
+			if !distillOverwrite {
+				continue // different but no overwrite
+			}
+		}
+
+		value := memguard.NewBufferFromBytes([]byte(s.Value))
+		if err := vm.SetSecret(s.Key, value); err != nil {
+			value.Destroy()
+			fmt.Printf("  ✗ %s: %v\n", s.Key, err)
+			continue
+		}
+		value.Destroy()
+		fmt.Printf("  ✓ %s imported\n", s.Key)
+		imported++
+	}
+
+	fmt.Printf("\n→ %d key(s) imported from %s\n", imported, source)
 	return nil
 }

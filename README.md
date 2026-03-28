@@ -122,6 +122,125 @@ vial pour --all              # re-pour all projects
 # → 12 projects updated
 ```
 
+### 🔍 Scaffold
+
+Auto-generate `.env.example` from your source code.
+
+```bash
+vial scaffold                # scan current project for env var references
+vial scaffold ./my-project   # scan specific directory
+# → Generates .env.example with all discovered variables
+```
+
+Detects env vars in JavaScript, TypeScript, Python, Go, Ruby, Rust, and PHP.
+
+### 🚀 Setup (Zero-Config Onboarding)
+
+One command to set up a new project — scan, scaffold, register, pour, and hook.
+
+```bash
+cd ~/projects/my-new-app
+vial setup                   # does everything below in one step:
+# ① Scans source code for env var references
+# ② Generates .env.example if missing
+# ③ Registers project in shelf
+# ④ Pours secrets from vault
+# ⑤ Installs git pre-commit hook
+```
+
+### 🛡️ Secret Leak Prevention
+
+Git pre-commit hook that scans staged files for leaked vault secrets.
+
+```bash
+vial hook install            # install pre-commit hook
+vial hook check --staged     # manually check staged files
+vial hook uninstall          # remove the hook
+```
+
+Create a `.vialignore` file to suppress false positives.
+
+### 🩺 Secret Health
+
+Track the age, rotation status, and health of your secrets.
+
+```bash
+vial health                                  # show health report
+vial health --set-rotation STRIPE_SECRET_KEY=90  # rotate every 90 days
+vial health --json                           # machine-readable output
+```
+
+### 🤖 MCP Server (AI Tool Integration)
+
+Model Context Protocol server for Claude Code, Cursor, and other AI coding tools.
+
+```bash
+vial mcp                     # start read-only MCP server
+vial mcp --allow-writes      # enable write operations
+```
+
+Configure in your MCP client (e.g. Claude Code `settings.json`):
+```json
+{
+  "mcpServers": {
+    "vial": { "command": "vial", "args": ["mcp"] }
+  }
+}
+```
+
+### 📦 Export Formats
+
+Export secrets in various formats for containers, CI/CD, and scripts.
+
+```bash
+vial export --confirm-plaintext --format=docker-env-file  # Docker
+vial export --confirm-plaintext --format=k8s-secret       # Kubernetes
+vial export --confirm-plaintext --format=github-actions    # GitHub Actions
+vial export --confirm-plaintext --format=shell             # Shell exports
+vial export --confirm-plaintext --format=json --keys="STRIPE_*"  # Filtered
+```
+
+### 📥 Import from External Sources
+
+Import secrets from popular secret managers.
+
+```bash
+vial distill --from=json secrets.json        # JSON file
+vial distill --from=1password                # 1Password CLI
+vial distill --from=doppler                  # Doppler
+vial distill --from=vercel                   # Vercel
+```
+
+### 🔗 Secret Sharing
+
+Create encrypted, time-limited secret bundles for teammates.
+
+```bash
+vial share OPENAI_API_KEY STRIPE_*           # create a bundle
+vial share --all --expires=1h                # share everything, 1-hour expiry
+vial share receive team-secrets.bundle       # import from a bundle
+```
+
+### 📋 Audit Log
+
+Track all vault activity.
+
+```bash
+vial audit                   # show last 20 entries
+vial audit --limit 50        # show more
+vial audit --csv             # export for compliance
+```
+
+### ⚡ GitHub Actions
+
+Use vial in CI/CD workflows with the included GitHub Action.
+
+```yaml
+- uses: cheesejaguar/vial@v1
+  env:
+    VIAL_MASTER_KEY: ${{ secrets.VIAL_MASTER_KEY }}
+```
+
 ### 🖥️ Dashboard
 
 A local web UI for browsing your vault, managing aliases, and checking secret health.
@@ -161,13 +280,22 @@ Vial uses alchemical command names with standard aliases for the conventionally-
 | `vial key list` | `list`, `ls` | List all stored key names |
 | `vial key rm NAME` | `rm` | Remove a secret |
 | `vial pour` | | Populate `.env` from vault |
-| `vial distill [FILE]` | `import` | Import keys from `.env` file |
+| `vial distill [FILE]` | `import` | Import keys from `.env` file or external source |
 | `vial brew -- CMD` | `run` | Run command with injected secrets |
 | `vial diff` | | Compare `.env.example` vs vault |
+| `vial scaffold` | | Auto-generate `.env.example` from source code |
+| `vial setup` | | Zero-config project onboarding |
+| `vial health` | | Secret health report & rotation policies |
+| `vial hook install/uninstall/check` | | Git pre-commit hook for leak prevention |
+| `vial mcp` | | Start MCP server for AI coding tools |
+| `vial export` | | Export secrets in various formats |
+| `vial share` | | Create encrypted secret bundles |
+| `vial share receive` | | Import from a shared bundle |
+| `vial audit` | | View vault audit log |
 | `vial shelf add/list/rm` | `project` | Manage project registry |
 | `vial label set/list/rm` | `alias` | Manage key aliases |
 | `vial dashboard` | | Launch web dashboard |
-| `vial sync push/pull/status` | | Sync vault to/from remote (filesystem; git is experimental) |
+| `vial sync push/pull/status` | | Sync vault to/from remote |
 | `vial completion bash/zsh/fish` | | Generate shell completions |
 
 ---
