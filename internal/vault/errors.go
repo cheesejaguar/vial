@@ -11,6 +11,8 @@ var (
 	ErrPasswordTooShort = errors.New("password must be at least 12 characters")
 	ErrVaultCorrupted   = errors.New("vault file is corrupted or tampered with")
 	ErrValueTooLarge    = errors.New("secret value exceeds 1 MiB limit")
+	ErrInvalidDEK       = errors.New("cached DEK failed to decrypt vault data")
+	ErrInvalidKeyName   = errors.New("invalid key name: must match [A-Za-z_][A-Za-z0-9_]* and be at most 256 characters")
 )
 
 const maxValueSize = 1 << 20 // 1 MiB
