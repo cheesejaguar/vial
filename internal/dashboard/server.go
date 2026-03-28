@@ -19,6 +19,7 @@ import (
 
 	"github.com/charmbracelet/log"
 
+	"github.com/cheesejaguar/vial/internal/audit"
 	"github.com/cheesejaguar/vial/internal/project"
 	"github.com/cheesejaguar/vial/internal/vault"
 )
@@ -27,6 +28,7 @@ import (
 type Server struct {
 	vm       *vault.VaultManager
 	registry *project.Registry
+	auditLog *audit.Log
 	token    string
 	logger   *log.Logger
 	port     int
@@ -39,9 +41,13 @@ func NewServer(vm *vault.VaultManager, registry *project.Registry, port int, log
 		return nil, fmt.Errorf("generating session token: %w", err)
 	}
 
+	auditPath := filepath.Join(filepath.Dir(vm.Path()), "audit.jsonl")
+	auditLog := audit.NewLog(auditPath)
+
 	return &Server{
 		vm:       vm,
 		registry: registry,
+		auditLog: auditLog,
 		token:    token,
 		logger:   logger,
 		port:     port,
@@ -66,6 +72,7 @@ func (s *Server) Start() error {
 	mux.HandleFunc("GET /api/aliases", s.authMiddleware(s.handleListAliases))
 	mux.HandleFunc("GET /api/projects", s.authMiddleware(s.handleListProjects))
 	mux.HandleFunc("GET /api/health/overview", s.authMiddleware(s.handleHealthOverview))
+	mux.HandleFunc("GET /api/audit", s.authMiddleware(s.handleAudit))
 
 	// Serve embedded SPA
 	staticFS, err := fs.Sub(frontendFS, "static")
@@ -279,8 +286,10 @@ func (s *Server) handleHealthOverview(w http.ResponseWriter, r *http.Request) {
 	staleCount := 0
 	var secretHealth []map[string]any
 
+	overdueCount := 0
 	for _, sec := range secrets {
 		ageDays := int(math.Floor(now.Sub(sec.Metadata.Added).Hours() / 24))
+		rotatedDays := int(math.Floor(now.Sub(sec.Metadata.Rotated).Hours() / 24))
 		if ageDays > 90 {
 			staleCount++
 		}
@@ -291,6 +300,15 @@ func (s *Server) handleHealthOverview(w http.ResponseWriter, r *http.Request) {
 		}
 		if !sec.Metadata.Rotated.IsZero() {
 			entry["last_rotated"] = sec.Metadata.Rotated.Format(time.RFC3339)
+			entry["rotated_days_ago"] = rotatedDays
+		}
+		if sec.Metadata.RotationDays > 0 {
+			entry["rotation_days"] = sec.Metadata.RotationDays
+			overdue := rotatedDays > sec.Metadata.RotationDays
+			entry["rotation_overdue"] = overdue
+			if overdue {
+				overdueCount++
+			}
 		}
 		secretHealth = append(secretHealth, entry)
 	}
@@ -304,8 +322,29 @@ func (s *Server) handleHealthOverview(w http.ResponseWriter, r *http.Request) {
 		"total_secrets":  len(secrets),
 		"total_projects": projectCount,
 		"stale_count":    staleCount,
+		"overdue_count":  overdueCount,
 		"secrets":        secretHealth,
 	})
+}
+
+func (s *Server) handleAudit(w http.ResponseWriter, r *http.Request) {
+	entries, err := s.auditLog.Read(100)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	result := make([]map[string]any, 0, len(entries))
+	for _, e := range entries {
+		result = append(result, map[string]any{
+			"timestamp": e.Timestamp.Format(time.RFC3339),
+			"event":     e.Event,
+			"keys":      e.Keys,
+			"project":   e.Project,
+			"detail":    e.Detail,
+		})
+	}
+	writeJSON(w, result)
 }
 
 // serveStaticFile serves a file from the embedded FS with correct MIME types.

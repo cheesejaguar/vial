@@ -1,0 +1,54 @@
+name: 'Vial Secret Vault'
+description: 'Inject secrets from your Vial vault into GitHub Actions workflows'
+branding:
+  icon: 'lock'
+  color: 'purple'
+
+inputs:
+  vault-path:
+    description: 'Path to the vault file (default: .vial/vault.json)'
+    required: false
+    default: '.vial/vault.json'
+  format:
+    description: 'Export format: github-actions, env, json'
+    required: false
+    default: 'github-actions'
+  keys:
+    description: 'Glob pattern to filter keys (e.g. STRIPE_*)'
+    required: false
+    default: ''
+  version:
+    description: 'Vial version to install'
+    required: false
+    default: 'latest'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Install Vial
+      shell: bash
+      run: |
+        VERSION="${{ inputs.version }}"
+        if [ "$VERSION" = "latest" ]; then
+          VERSION=$(curl -s https://api.github.com/repos/cheesejaguar/vial/releases/latest | grep '"tag_name"' | sed 's/.*"v//' | sed 's/".*//')
+        fi
+        ARCH=$(uname -m)
+        case "$ARCH" in
+          x86_64) ARCH="amd64" ;;
+          aarch64|arm64) ARCH="arm64" ;;
+        esac
+        OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+        URL="https://github.com/cheesejaguar/vial/releases/download/v${VERSION}/vial_${VERSION}_${OS}_${ARCH}.tar.gz"
+        curl -sL "$URL" | tar xz -C /usr/local/bin vial
+        chmod +x /usr/local/bin/vial
+
+    - name: Export secrets
+      shell: bash
+      env:
+        VIAL_MASTER_KEY: ${{ env.VIAL_MASTER_KEY }}
+      run: |
+        ARGS="--confirm-plaintext --format ${{ inputs.format }}"
+        if [ -n "${{ inputs.keys }}" ]; then
+          ARGS="$ARGS --keys ${{ inputs.keys }}"
+        fi
+        vial export $ARGS

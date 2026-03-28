@@ -28,22 +28,24 @@ type KDFParamsJSON struct {
 
 // SecretEntry is a single encrypted secret in the vault file.
 type SecretEntry struct {
-	Value    string   `json:"value"`   // base64-encoded encrypted value
-	Nonce    string   `json:"nonce"`   // base64-encoded GCM nonce
-	Aliases  []string `json:"aliases"`
-	Provider string   `json:"provider,omitempty"`
-	Tags     []string `json:"tags"`
-	Added    string   `json:"added"`
-	Rotated  string   `json:"rotated"`
+	Value        string   `json:"value"`                  // base64-encoded encrypted value
+	Nonce        string   `json:"nonce"`                  // base64-encoded GCM nonce
+	Aliases      []string `json:"aliases"`
+	Provider     string   `json:"provider,omitempty"`
+	Tags         []string `json:"tags"`
+	Added        string   `json:"added"`
+	Rotated      string   `json:"rotated"`
+	RotationDays int      `json:"rotation_days,omitempty"` // 0 = no rotation policy
 }
 
 // SecretMetadata holds non-secret data about a secret.
 type SecretMetadata struct {
-	Aliases  []string  `json:"aliases,omitempty"`
-	Provider string    `json:"provider,omitempty"`
-	Tags     []string  `json:"tags,omitempty"`
-	Added    time.Time `json:"added"`
-	Rotated  time.Time `json:"rotated"`
+	Aliases      []string  `json:"aliases,omitempty"`
+	Provider     string    `json:"provider,omitempty"`
+	Tags         []string  `json:"tags,omitempty"`
+	Added        time.Time `json:"added"`
+	Rotated      time.Time `json:"rotated"`
+	RotationDays int       `json:"rotation_days,omitempty"`
 }
 
 // AliasRule defines a regex pattern mapping to a canonical key name (Phase 2+).

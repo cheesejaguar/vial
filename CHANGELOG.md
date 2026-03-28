@@ -8,6 +8,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+#### Phase 5 — Vibecoding Ecosystem (Research-Driven Improvements)
+- **MCP Server** — Model Context Protocol server for AI coding tools (Claude Code, Cursor); `vial mcp` with read-only and read-write modes
+- **Secret Leak Prevention** — Git pre-commit hook scanning staged files for vault secrets; `vial hook install/uninstall/check` with `.vialignore` support
+- **Secret Health Scoring** — Configurable rotation policies per key with CLI health report and enhanced dashboard; `vial health --set-rotation KEY=DAYS`
+- **Auto-Scaffold** — Source code scanner generates `.env.example` from env var references; `vial scaffold` supports JS, TS, Python, Go, Ruby, Rust, PHP
+- **Zero-Config Setup** — One-command project onboarding: scan, scaffold, register, pour, hook; `vial setup`
+- **Export Formats** — Docker env-file, Kubernetes Secret YAML, GitHub Actions, shell export formats; `vial export --format=<format> --keys=<glob>`
+- **External Importers** — Import secrets from 1Password, Doppler, Vercel, and JSON; `vial distill --from=<source>`
+- **Secret Sharing** — Encrypted, time-limited bundles with per-bundle passphrase; `vial share` / `vial share receive`
+- **Audit Log** — JSONL audit trail for all vault operations with CLI and dashboard views; `vial audit`
+- **GitHub Actions** — Reusable composite action for CI/CD secret injection; `action.yaml`
+
 #### Phase 1 — Core MVP
 - Encrypted vault with Argon2id KDF and AES-256-GCM per-value encryption
 - `vial init` — create a new vault with master password
