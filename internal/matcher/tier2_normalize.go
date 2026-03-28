@@ -1,6 +1,8 @@
 package matcher
 
 import (
+	"strings"
+
 	"github.com/cheesejaguar/vial/internal/alias"
 )
 
@@ -20,7 +22,10 @@ func (m *NormalizeMatcher) Match(requestedKey string, vaultKeys []string) ([]Mat
 		if normalizedReq == normalizedVK {
 			confidence := 0.90
 			reason := "case-insensitive match"
-			if normalizedReq != requestedKey || normalizedVK != vk {
+			reqUpperOnly := strings.ToUpper(requestedKey)
+			vkUpperOnly := strings.ToUpper(vk)
+			if normalizedReq != reqUpperOnly || normalizedVK != vkUpperOnly {
+				// Normalization changed more than just case — a prefix was stripped
 				reason = "prefix-stripped match"
 				confidence = 0.85
 			}

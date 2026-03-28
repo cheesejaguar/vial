@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"syscall"
 
@@ -56,7 +57,7 @@ func runBrew(cmd *cobra.Command, args []string) error {
 
 	// Determine which env vars to inject
 	dir, _ := os.Getwd()
-	templatePath := dir + "/" + cfg.EnvExample
+	templatePath := filepath.Join(dir, cfg.EnvExample)
 
 	var keysToInject []string
 
