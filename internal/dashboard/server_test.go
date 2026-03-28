@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/awnumar/memguard"
+	"os"
 	"github.com/charmbracelet/log"
 
 	"github.com/cheesejaguar/vial/internal/vault"
@@ -43,7 +44,7 @@ func newTestServer(t *testing.T) *Server {
 		val.Destroy()
 	}
 
-	logger := log.New(log.WithLevel(log.FatalLevel))
+	logger := log.NewWithOptions(os.Stderr, log.Options{Level: log.FatalLevel})
 	srv, err := NewServer(vm, nil, testPort, logger)
 	if err != nil {
 		t.Fatalf("NewServer: %v", err)
