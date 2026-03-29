@@ -256,17 +256,19 @@ Dark-themed Svelte SPA with vault browser, alias management, project registry, a
 
 Teach Claude Code to manage your secrets automatically. When Claude encounters missing `.env` files or API key errors during project setup, it will use Vial to populate secrets from your vault.
 
-Install the skill inside Claude Code:
-```
-/install-skill https://raw.githubusercontent.com/cheesejaguar/vial/main/docs/claude-code-skill/vial.md
+Install globally (all projects):
+```bash
+mkdir -p ~/.claude/skills/vial
+curl -o ~/.claude/skills/vial/SKILL.md \
+  https://raw.githubusercontent.com/cheesejaguar/vial/main/docs/claude-code-skill/vial.md
 ```
 
-Or install it project-wide so all contributors benefit:
+Or install project-wide so all contributors benefit:
 ```bash
-mkdir -p .claude/skills
-curl -o .claude/skills/vial.md \
+mkdir -p .claude/skills/vial
+curl -o .claude/skills/vial/SKILL.md \
   https://raw.githubusercontent.com/cheesejaguar/vial/main/docs/claude-code-skill/vial.md
-git add .claude/skills/vial.md && git commit -m "Add Vial skill for Claude Code"
+git add .claude/skills/vial/SKILL.md && git commit -m "Add Vial skill for Claude Code"
 ```
 
 See the full [skill installation guide](docs/claude-code-skill/INSTALL.md) for more options, including MCP server setup.
