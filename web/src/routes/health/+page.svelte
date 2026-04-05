@@ -70,7 +70,7 @@
 	 *   - 90 days: first warning (many compliance frameworks require quarterly rotation)
 	 *   - 180 days: danger threshold (six months without rotation is high risk)
 	 *
-	 * @param {number} days — Age of the secret in days.
+	 * @param {number} days - Age of the secret in days.
 	 * @returns {'danger' | 'warning' | 'ok'} CSS modifier class.
 	 */
 	function statusClass(days) {

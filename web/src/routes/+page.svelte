@@ -79,7 +79,7 @@
 			const data = await fetchSecrets();
 			// Populate the shared vault store so derived stores (filteredSecrets,
 			// allTags) immediately recompute from the loaded data.
-			secrets.set(data || []);
+			secrets.set(/** @type {any} */ (data) || []);
 		} catch (e) {
 			error = e.message;
 		} finally {
@@ -93,8 +93,8 @@
 
 	/**
 	 * Displays a transient toast notification then clears it after 2.5 s.
-	 * @param {string} msg — Human-readable message.
-	 * @param {'success' | 'error'} [type='success'] — Controls toast colour.
+	 * @param {string} msg - Human-readable message.
+	 * @param {'success' | 'error'} [type='success'] - Controls toast colour.
 	 */
 	function showToast(msg, type = 'success') {
 		toast = { msg, type };
@@ -130,7 +130,7 @@
 			await createSecret(newKey.trim(), newValue.trim());
 			// Re-fetch so the list includes server-generated metadata.
 			const data = await fetchSecrets();
-			secrets.set(data || []);
+			secrets.set(/** @type {any} */ (data) || []);
 			showAdd = false;
 			// Capture the trimmed key before resetting state for the toast message.
 			newKey = '';
@@ -145,7 +145,7 @@
 	 * Asks for confirmation then deletes the secret. On success, optimistically
 	 * removes the entry from the store to avoid a full re-fetch round trip.
 	 *
-	 * @param {string} key — The vault key name to delete.
+	 * @param {string} key - The vault key name to delete.
 	 */
 	async function handleDelete(key) {
 		if (!confirm(`Delete "${key}"?`)) return;
@@ -169,7 +169,7 @@
 	 * because Svelte 5's fine-grained reactivity requires a new object reference
 	 * to detect property-level changes on a $state object.
 	 *
-	 * @param {string} key — Vault key name.
+	 * @param {string} key - Vault key name.
 	 */
 	async function handleReveal(key) {
 		if (revealedKeys[key]) {
@@ -179,7 +179,7 @@
 			return;
 		}
 		try {
-			const data = await revealSecret(key);
+			const data = /** @type {any} */ (await revealSecret(key));
 			revealedKeys = { ...revealedKeys, [key]: data.value };
 		} catch (e) {
 			showToast(`Failed to reveal: ${e.message}`, 'error');
@@ -195,7 +195,7 @@
 	 * The bullet character (U+2022) is used rather than '*' to clearly signal
 	 * that this is a masked placeholder, not the actual value.
 	 *
-	 * @param {string | null | undefined} val — The plaintext value (not used
+	 * @param {string | null | undefined} val - The plaintext value (not used
 	 *   here since we intentionally never store values in the list, but the
 	 *   parameter is kept for consistency with potential future use).
 	 * @returns {string} Masked display string.

@@ -45,8 +45,8 @@ var rootCmd = &cobra.Command{
 	Use:           "vial",
 	Short:         "The centralized secret vault for vibe coders",
 	Long:          "Store your API keys once. Pour them everywhere.",
-	SilenceUsage:  true,  // prevent Cobra from printing usage on RunE errors
-	SilenceErrors: true,  // errors are printed by main, not Cobra internals
+	SilenceUsage:  true, // prevent Cobra from printing usage on RunE errors
+	SilenceErrors: true, // errors are printed by main, not Cobra internals
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		// Elevate log level early so every sub-command inherits the setting.
 		if verbose {

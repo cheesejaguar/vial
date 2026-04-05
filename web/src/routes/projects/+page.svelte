@@ -119,7 +119,7 @@
 	 * The project is identified by name (not path) because the name is the
 	 * stable identifier used in the API route: DELETE /api/projects/:name
 	 *
-	 * @param {string} name — The project's name (basename of its directory).
+	 * @param {string} name - The project's name (basename of its directory).
 	 */
 	async function handleRemove(name) {
 		if (!confirm(`Unregister "${name}"?`)) return;

@@ -61,7 +61,7 @@
 
 	onMount(async () => {
 		try {
-			aliases = (await fetchAliases()) || [];
+			aliases = /** @type {any} */ (await fetchAliases()) || [];
 		} catch (e) {
 			error = e.message;
 		} finally {
@@ -105,7 +105,7 @@
 			await createAlias(newAlias.trim(), newCanonical.trim());
 			// Re-fetch rather than optimistically pushing to the array, so the
 			// list reflects any canonical key normalisation done server-side.
-			aliases = (await fetchAliases()) || [];
+			aliases = /** @type {any} */ (await fetchAliases()) || [];
 			showAdd = false;
 			newAlias = '';
 			newCanonical = '';
@@ -120,7 +120,7 @@
 	 * Uses an optimistic local filter so the row disappears immediately without
 	 * waiting for a re-fetch.
 	 *
-	 * @param {string} alias — The alias key name to remove.
+	 * @param {string} alias - The alias key name to remove.
 	 */
 	async function handleDelete(alias) {
 		try {

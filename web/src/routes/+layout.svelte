@@ -74,8 +74,8 @@
 	 * current pathname. The root '/' route requires an exact match to avoid
 	 * marking every route as active (all paths start with '/').
 	 *
-	 * @param {string} href — The nav item's href.
-	 * @param {string} pathname — The current URL pathname from $page.url.
+	 * @param {string} href - The nav item's href.
+	 * @param {string} pathname - The current URL pathname from $page.url.
 	 * @returns {boolean}
 	 */
 	function isActive(href, pathname) {

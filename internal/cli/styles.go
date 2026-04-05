@@ -43,18 +43,18 @@ var (
 // mutate these variables. New one-off styles should be constructed locally
 // rather than added here unless they are used in three or more places.
 var (
-	styleSuccess = lipgloss.NewStyle().Foreground(colorGreen).Bold(true)  // ✓ green bold
-	styleError   = lipgloss.NewStyle().Foreground(colorRed).Bold(true)    // ✗ red bold
-	styleWarning = lipgloss.NewStyle().Foreground(colorOrange).Bold(true) // ⚠ orange bold
-	styleInfo    = lipgloss.NewStyle().Foreground(colorPurple)            // informational purple
-	styleKey     = lipgloss.NewStyle().Foreground(colorGold)              // vault key names
-	styleMuted   = lipgloss.NewStyle().Foreground(colorMuted)             // paths, secondary labels
-	styleDim     = lipgloss.NewStyle().Foreground(colorDim)               // skipped / disabled items
-	styleBold    = lipgloss.NewStyle().Bold(true)                         // emphasis without colour
-	styleHeader  = lipgloss.NewStyle().Foreground(colorPurple).Bold(true) // section headings
-	styleBadge   = lipgloss.NewStyle().Foreground(colorPurpleDark)        // small badges / counts
-	styleCount   = lipgloss.NewStyle().Foreground(colorPurple)            // numeric counts
-	styleArrow   = lipgloss.NewStyle().Foreground(colorGold)              // → directional arrows
+	styleSuccess = lipgloss.NewStyle().Foreground(colorGreen).Bold(true)          // ✓ green bold
+	styleError   = lipgloss.NewStyle().Foreground(colorRed).Bold(true)            // ✗ red bold
+	styleWarning = lipgloss.NewStyle().Foreground(colorOrange).Bold(true)         // ⚠ orange bold
+	styleInfo    = lipgloss.NewStyle().Foreground(colorPurple)                    // informational purple
+	styleKey     = lipgloss.NewStyle().Foreground(colorGold)                      // vault key names
+	styleMuted   = lipgloss.NewStyle().Foreground(colorMuted)                     // paths, secondary labels
+	styleDim     = lipgloss.NewStyle().Foreground(colorDim)                       // skipped / disabled items
+	styleBold    = lipgloss.NewStyle().Bold(true)                                 // emphasis without colour
+	styleHeader  = lipgloss.NewStyle().Foreground(colorPurple).Bold(true)         // section headings
+	styleBadge   = lipgloss.NewStyle().Foreground(colorPurpleDark)                // small badges / counts
+	styleCount   = lipgloss.NewStyle().Foreground(colorPurple)                    // numeric counts
+	styleArrow   = lipgloss.NewStyle().Foreground(colorGold)                      // → directional arrows
 	styleURL     = lipgloss.NewStyle().Foreground(colorGoldLight).Underline(true) // clickable URLs
 )
 

@@ -61,7 +61,7 @@
 	 * The granularity steps from "just now" → minutes → hours → days, which
 	 * matches the typical audit use case where recent activity matters most.
 	 *
-	 * @param {string} ts — ISO 8601 timestamp string from the server.
+	 * @param {string} ts - ISO 8601 timestamp string from the server.
 	 * @returns {string} Human-relative string, e.g. "just now", "3m ago", "2d ago".
 	 */
 	function timeAgo(ts) {
@@ -80,7 +80,7 @@
 	 * dot at the start of each row. The goal is fast visual scanning: red for
 	 * destructive actions, green for constructive ones, neutral otherwise.
 	 *
-	 * @param {string} event — The event type string from the audit entry.
+	 * @param {string} event - The event type string from the audit entry.
 	 * @returns {'danger' | 'ok' | ''} CSS modifier class.
 	 */
 	function eventColor(event) {
