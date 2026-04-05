@@ -12,6 +12,13 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// exportCmd outputs vault secrets in plaintext to stdout in a variety of
+// target formats. Because it emits raw secret values it requires an explicit
+// --confirm-plaintext flag; this is a deliberate friction point to prevent
+// accidental exposure (e.g. captured in shell history, CI logs).
+//
+// All output goes to stdout so callers can pipe it to a file or another
+// process. Warnings are written to stderr so they do not corrupt the output.
 var exportCmd = &cobra.Command{
 	Use:   "export",
 	Short: "Export vault secrets to stdout",
@@ -40,10 +47,17 @@ Examples:
 	RunE: runExport,
 }
 
+// Export flag state.
 var (
-	exportFormat           string
+	// exportFormat selects the output serialisation. Supported values:
+	// "env", "json", "docker-env-file", "k8s-secret", "github-actions", "shell".
+	exportFormat string
+	// exportConfirmPlaintext is a required guard flag. The command refuses to
+	// run without it to prevent accidental plaintext output.
 	exportConfirmPlaintext bool
-	exportKeys             string
+	// exportKeys is an optional glob pattern (e.g. "STRIPE_*") that restricts
+	// the exported set to matching key names.
+	exportKeys string
 )
 
 func init() {
@@ -53,7 +67,16 @@ func init() {
 	rootCmd.AddCommand(exportCmd)
 }
 
+// runExport is the Cobra RunE handler for the export command. It enforces the
+// --confirm-plaintext guard, unlocks the vault, optionally filters keys by
+// glob, then dispatches to the appropriate format renderer.
+//
+// Security invariant: the warning banner is always written to stderr so it
+// appears even when stdout is redirected to a file or pipe.
 func runExport(cmd *cobra.Command, args []string) error {
+	// Hard stop if the user has not explicitly acknowledged the risk. This
+	// prevents `vial export` from being accidentally run in a context where
+	// output is captured (CI logs, shell history, etc.).
 	if !exportConfirmPlaintext {
 		return fmt.Errorf("this command outputs secrets in plaintext; pass --confirm-plaintext to confirm")
 	}
@@ -68,9 +91,11 @@ func runExport(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+	// Sort keys so output is deterministic and diffable.
 	sort.Strings(keys)
 
-	// Filter keys by glob pattern
+	// Apply optional glob filter before decrypting any values so we only
+	// decrypt what is actually needed.
 	if exportKeys != "" {
 		keys = filterKeysByGlob(keys, exportKeys)
 		if len(keys) == 0 {
@@ -80,7 +105,9 @@ func runExport(cmd *cobra.Command, args []string) error {
 
 	fmt.Fprintln(os.Stderr, warningMsg("WARNING: outputting secrets in plaintext"))
 
-	// Collect all key-value pairs
+	// Decrypt all selected key values up front so the format renderers below
+	// can access them without repeated vault calls. Each LockedBuffer is
+	// destroyed after the string copy.
 	secrets := make(map[string]string, len(keys))
 	for _, key := range keys {
 		val, err := vm.GetSecret(key)
@@ -94,6 +121,8 @@ func runExport(cmd *cobra.Command, args []string) error {
 
 	switch exportFormat {
 	case "env":
+		// Standard .env format: KEY="value" with Go %q quoting so values
+		// containing spaces or special characters are safe to re-parse.
 		for _, key := range keys {
 			if val, ok := secrets[key]; ok {
 				fmt.Printf("%s=%q\n", key, val)
@@ -101,6 +130,8 @@ func runExport(cmd *cobra.Command, args []string) error {
 		}
 
 	case "json":
+		// JSON object keyed by secret name. Uses json.Encoder so the output
+		// is valid UTF-8 with proper escaping.
 		result := make(map[string]string, len(secrets))
 		for _, key := range keys {
 			if val, ok := secrets[key]; ok {
@@ -114,6 +145,9 @@ func runExport(cmd *cobra.Command, args []string) error {
 		}
 
 	case "docker-env-file":
+		// Docker --env-file format: unquoted KEY=VALUE pairs. Docker reads
+		// values literally without shell processing, so quoting is not needed
+		// and would be included in the value.
 		for _, key := range keys {
 			if val, ok := secrets[key]; ok {
 				fmt.Printf("%s=%s\n", key, val)
@@ -121,6 +155,9 @@ func runExport(cmd *cobra.Command, args []string) error {
 		}
 
 	case "k8s-secret":
+		// Kubernetes Secret manifest (type: Opaque). Values must be base64-
+		// encoded per the K8s API spec. Key names are normalised to lowercase
+		// with underscores replaced by hyphens to satisfy DNS subdomain rules.
 		fmt.Println("apiVersion: v1")
 		fmt.Println("kind: Secret")
 		fmt.Println("metadata:")
@@ -137,6 +174,10 @@ func runExport(cmd *cobra.Command, args []string) error {
 		}
 
 	case "github-actions":
+		// GitHub Actions environment file protocol: appends KEY=VALUE lines to
+		// the file pointed to by $GITHUB_ENV. When not running inside GitHub
+		// Actions ($GITHUB_ENV is unset) the output falls back to stdout with a
+		// notice on stderr so local testing still works.
 		ghEnvFile := os.Getenv("GITHUB_ENV")
 		if ghEnvFile == "" {
 			// Not in GitHub Actions; output to stdout
@@ -147,6 +188,8 @@ func runExport(cmd *cobra.Command, args []string) error {
 			}
 			fmt.Fprintln(os.Stderr, "Note: $GITHUB_ENV not set; output written to stdout")
 		} else {
+			// Append to the runner-managed env file with 0600 permissions.
+			// O_APPEND ensures we do not clobber other steps' exports.
 			f, err := os.OpenFile(ghEnvFile, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
 			if err != nil {
 				return fmt.Errorf("opening $GITHUB_ENV: %w", err)
@@ -161,6 +204,10 @@ func runExport(cmd *cobra.Command, args []string) error {
 		}
 
 	case "shell":
+		// Shell export statements that can be sourced directly:
+		//   source <(vial export --confirm-plaintext --format shell)
+		// Values are %q-quoted so the shell handles spaces and special
+		// characters correctly.
 		for _, key := range keys {
 			if val, ok := secrets[key]; ok {
 				fmt.Printf("export %s=%q\n", key, val)
@@ -174,8 +221,10 @@ func runExport(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// filterKeysByGlob filters keys by a glob-like pattern.
-// Supports * as wildcard at start or end.
+// filterKeysByGlob returns the subset of keys that match the given glob
+// pattern using filepath.Match semantics (* matches any sequence of
+// non-separator characters). Unrecognised patterns are silently treated as
+// non-matching rather than returning an error.
 func filterKeysByGlob(keys []string, pattern string) []string {
 	var filtered []string
 	for _, key := range keys {

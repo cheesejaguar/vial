@@ -7,6 +7,8 @@ import (
 	"github.com/awnumar/memguard"
 )
 
+// TestDeriveKEKDeterministic verifies that the same password, salt, and params
+// always produce the same KEK.
 func TestDeriveKEKDeterministic(t *testing.T) {
 	params := TestKDFParams()
 	salt, err := GenerateSalt()
@@ -39,6 +41,8 @@ func TestDeriveKEKDeterministic(t *testing.T) {
 	}
 }
 
+// TestDeriveKEKDifferentSalts verifies that different salts yield different
+// KEKs even with the same password.
 func TestDeriveKEKDifferentSalts(t *testing.T) {
 	params1 := TestKDFParams()
 	salt1, _ := GenerateSalt()
@@ -71,6 +75,8 @@ func TestDeriveKEKDifferentSalts(t *testing.T) {
 	}
 }
 
+// TestDeriveKEKDifferentPasswords verifies that different passwords yield
+// different KEKs with the same salt and params.
 func TestDeriveKEKDifferentPasswords(t *testing.T) {
 	params := TestKDFParams()
 	salt, _ := GenerateSalt()
@@ -91,6 +97,8 @@ func TestDeriveKEKDifferentPasswords(t *testing.T) {
 	}
 }
 
+// TestDeriveKEKOutputSize verifies that the derived KEK is exactly 32 bytes
+// (AES-256 key size).
 func TestDeriveKEKOutputSize(t *testing.T) {
 	params := TestKDFParams()
 	salt, _ := GenerateSalt()
@@ -110,6 +118,7 @@ func TestDeriveKEKOutputSize(t *testing.T) {
 	}
 }
 
+// TestDeriveKEKEmptySalt verifies that DeriveKEK rejects an empty salt.
 func TestDeriveKEKEmptySalt(t *testing.T) {
 	params := TestKDFParams()
 	// No salt set
@@ -123,6 +132,7 @@ func TestDeriveKEKEmptySalt(t *testing.T) {
 	}
 }
 
+// TestGenerateSalt verifies correct salt size and randomness (two salts differ).
 func TestGenerateSalt(t *testing.T) {
 	salt, err := GenerateSalt()
 	if err != nil {

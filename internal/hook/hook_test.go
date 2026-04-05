@@ -6,10 +6,12 @@ import (
 	"testing"
 )
 
+// TestInstallAndUninstall verifies the full install → check → uninstall lifecycle
+// on a fresh fake git repository with no pre-existing hook.
 func TestInstallAndUninstall(t *testing.T) {
 	dir := t.TempDir()
 
-	// Create a fake .git directory
+	// Create a fake .git directory so Install does not reject the path.
 	gitDir := filepath.Join(dir, ".git")
 	if err := os.MkdirAll(gitDir, 0755); err != nil {
 		t.Fatal(err)
@@ -41,7 +43,7 @@ func TestInstallAndUninstall(t *testing.T) {
 		t.Error("hook file missing markers")
 	}
 
-	// Install again should fail
+	// Install again should fail — double-install is a user error.
 	if err := Install(dir); err == nil {
 		t.Error("expected error on double install")
 	}
@@ -55,12 +57,15 @@ func TestInstallAndUninstall(t *testing.T) {
 		t.Error("IsInstalled returned true after uninstall")
 	}
 
-	// Hook file should be removed (was only vial content)
+	// Hook file should be removed because the vial block was the only content.
 	if _, err := os.Stat(hookPath); !os.IsNotExist(err) {
 		t.Error("hook file should be removed when only vial content")
 	}
 }
 
+// TestInstallAppendsToExisting verifies that installing into a repo that already
+// has a pre-commit hook preserves the existing script and that uninstalling only
+// removes the vial block, leaving the original content intact.
 func TestInstallAppendsToExisting(t *testing.T) {
 	dir := t.TempDir()
 	gitDir := filepath.Join(dir, ".git", "hooks")
@@ -93,7 +98,7 @@ func TestInstallAppendsToExisting(t *testing.T) {
 		t.Error("vial hook not appended")
 	}
 
-	// Uninstall should preserve existing content
+	// Uninstall should preserve existing content and remove only the vial block.
 	if err := Uninstall(dir); err != nil {
 		t.Fatalf("Uninstall: %v", err)
 	}
@@ -110,6 +115,8 @@ func TestInstallAppendsToExisting(t *testing.T) {
 	}
 }
 
+// TestInstallNoGitDir confirms that Install returns an error when the target
+// directory is not a git repository.
 func TestInstallNoGitDir(t *testing.T) {
 	dir := t.TempDir()
 	if err := Install(dir); err == nil {
@@ -117,6 +124,8 @@ func TestInstallNoGitDir(t *testing.T) {
 	}
 }
 
+// TestLoadIgnorePatterns verifies that blank lines and comment lines are excluded
+// and that valid patterns are returned in order.
 func TestLoadIgnorePatterns(t *testing.T) {
 	dir := t.TempDir()
 
@@ -134,6 +143,7 @@ func TestLoadIgnorePatterns(t *testing.T) {
 	}
 }
 
+// TestShouldIgnore checks the ignore logic against file-path and line-content patterns.
 func TestShouldIgnore(t *testing.T) {
 	patterns := []string{"test-fixture", "mock"}
 
@@ -148,6 +158,7 @@ func TestShouldIgnore(t *testing.T) {
 	}
 }
 
+// contains is a helper that avoids importing strings in the test file.
 func contains(s, substr string) bool {
 	return len(s) >= len(substr) && (s == substr || len(s) > 0 && containsSubstr(s, substr))
 }

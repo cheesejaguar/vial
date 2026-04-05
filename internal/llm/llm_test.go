@@ -7,6 +7,9 @@ import (
 	"github.com/awnumar/memguard"
 )
 
+// TestParseMatchResponse exercises the full surface of ParseMatchResponse,
+// including plain JSON, markdown-fenced JSON, whitespace padding, and
+// out-of-range confidence values.
 func TestParseMatchResponse(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -28,12 +31,15 @@ func TestParseMatchResponse(t *testing.T) {
 			wantConf:  0.0,
 		},
 		{
+			// Models frequently wrap JSON in ```json fences despite instructions;
+			// verify that the fence-stripping path handles the language tag.
 			name:      "markdown code fence",
 			raw:       "```json\n{\"match\": \"STRIPE_KEY\", \"confidence\": 0.8, \"reason\": \"stripe key\"}\n```",
 			wantMatch: "STRIPE_KEY",
 			wantConf:  0.8,
 		},
 		{
+			// Some models use bare ``` without a language tag.
 			name:      "code fence without language",
 			raw:       "```\n{\"match\": \"KEY\", \"confidence\": 0.5, \"reason\": \"test\"}\n```",
 			wantMatch: "KEY",
@@ -45,6 +51,8 @@ func TestParseMatchResponse(t *testing.T) {
 			wantErr: true,
 		},
 		{
+			// Confidence > 1.0 should be rejected; LLMs occasionally hallucinate
+			// values like 1.5 when they are "very confident".
 			name:    "invalid confidence too high",
 			raw:     `{"match": "KEY", "confidence": 1.5, "reason": "test"}`,
 			wantErr: true,
@@ -84,6 +92,8 @@ func TestParseMatchResponse(t *testing.T) {
 	}
 }
 
+// TestFormatMatchPrompt verifies that the formatted prompt includes both the
+// requested key and all vault keys.
 func TestFormatMatchPrompt(t *testing.T) {
 	prompt := FormatMatchPrompt("MY_KEY", []string{"OPENAI_API_KEY", "STRIPE_KEY"})
 	if prompt == "" {
@@ -100,6 +110,7 @@ func TestFormatMatchPrompt(t *testing.T) {
 	}
 }
 
+// TestTruncateStr checks boundary conditions for the error-message helper.
 func TestTruncateStr(t *testing.T) {
 	tests := []struct {
 		input string
@@ -121,6 +132,8 @@ func TestTruncateStr(t *testing.T) {
 
 // --- Provider constructor tests ---
 
+// TestNewOpenAIProviderDefaults verifies that empty endpoint and model
+// arguments are replaced with the documented defaults.
 func TestNewOpenAIProviderDefaults(t *testing.T) {
 	p := NewOpenAIProvider("", "sk-test", "")
 	if p.endpoint != "https://api.openai.com/v1" {
@@ -137,6 +150,8 @@ func TestNewOpenAIProviderDefaults(t *testing.T) {
 	}
 }
 
+// TestNewOpenAIProviderCustom checks that a trailing slash is stripped from
+// custom endpoints to prevent double-slash in constructed URLs.
 func TestNewOpenAIProviderCustom(t *testing.T) {
 	p := NewOpenAIProvider("https://openrouter.ai/api/v1/", "key", "claude-3")
 	if p.endpoint != "https://openrouter.ai/api/v1" {
@@ -147,6 +162,8 @@ func TestNewOpenAIProviderCustom(t *testing.T) {
 	}
 }
 
+// TestOpenAIProviderNotAvailable ensures Available returns false when no API
+// key is supplied, preventing unnecessary network calls.
 func TestOpenAIProviderNotAvailable(t *testing.T) {
 	p := NewOpenAIProvider("", "", "")
 	if p.Available() {
@@ -154,6 +171,8 @@ func TestOpenAIProviderNotAvailable(t *testing.T) {
 	}
 }
 
+// TestNewAnthropicProviderDefaults verifies that empty endpoint and model
+// arguments are replaced with the documented defaults.
 func TestNewAnthropicProviderDefaults(t *testing.T) {
 	p := NewAnthropicProvider("", "sk-ant-test", "")
 	if p.endpoint != "https://api.anthropic.com" {
@@ -170,6 +189,8 @@ func TestNewAnthropicProviderDefaults(t *testing.T) {
 	}
 }
 
+// TestAnthropicProviderNotAvailable ensures Available returns false when no
+// API key is supplied.
 func TestAnthropicProviderNotAvailable(t *testing.T) {
 	p := NewAnthropicProvider("", "", "")
 	if p.Available() {
@@ -179,6 +200,7 @@ func TestAnthropicProviderNotAvailable(t *testing.T) {
 
 // --- Bootstrap tests ---
 
+// mockVaultGetter is a test double for VaultKeyGetter backed by a plain map.
 type mockVaultGetter struct {
 	secrets map[string]string
 }
@@ -191,6 +213,8 @@ func (m *mockVaultGetter) GetSecret(key string) (*memguard.LockedBuffer, error) 
 	return memguard.NewBufferFromBytes([]byte(val)), nil
 }
 
+// TestBootstrapOpenAI verifies that a "openai" provider config produces an
+// OpenAIProvider with Available() == true.
 func TestBootstrapOpenAI(t *testing.T) {
 	vault := &mockVaultGetter{secrets: map[string]string{"OPENAI_KEY": "sk-test123"}}
 	cfg := Config{
@@ -211,6 +235,8 @@ func TestBootstrapOpenAI(t *testing.T) {
 	}
 }
 
+// TestBootstrapAnthropic verifies that an "anthropic" provider config produces
+// an AnthropicProvider.
 func TestBootstrapAnthropic(t *testing.T) {
 	vault := &mockVaultGetter{secrets: map[string]string{"ANTHROPIC_KEY": "sk-ant-test"}}
 	cfg := Config{
@@ -227,6 +253,8 @@ func TestBootstrapAnthropic(t *testing.T) {
 	}
 }
 
+// TestBootstrapOpenRouter confirms that "openrouter" maps to the OpenAI-
+// compatible provider (OpenRouter speaks the OpenAI wire protocol).
 func TestBootstrapOpenRouter(t *testing.T) {
 	vault := &mockVaultGetter{secrets: map[string]string{"OR_KEY": "sk-or-test"}}
 	cfg := Config{
@@ -244,6 +272,9 @@ func TestBootstrapOpenRouter(t *testing.T) {
 	}
 }
 
+// TestBootstrapUnknownProvider confirms that unrecognised provider names fall
+// back to the OpenAI-compatible implementation rather than erroring, so users
+// can point Vial at any local LLM server.
 func TestBootstrapUnknownProvider(t *testing.T) {
 	vault := &mockVaultGetter{secrets: map[string]string{"KEY": "test"}}
 	cfg := Config{
@@ -262,6 +293,8 @@ func TestBootstrapUnknownProvider(t *testing.T) {
 	}
 }
 
+// TestBootstrapNoConfig verifies that a Config with no VaultKeyRef returns
+// ErrNoLLMConfigured, allowing callers to disable the LLM tier gracefully.
 func TestBootstrapNoConfig(t *testing.T) {
 	vault := &mockVaultGetter{secrets: map[string]string{}}
 	cfg := Config{} // no VaultKeyRef
@@ -272,6 +305,8 @@ func TestBootstrapNoConfig(t *testing.T) {
 	}
 }
 
+// TestBootstrapKeyNotInVault verifies that a missing vault key surfaces as an
+// error so the user gets a clear message rather than a silent failure.
 func TestBootstrapKeyNotInVault(t *testing.T) {
 	vault := &mockVaultGetter{secrets: map[string]string{}}
 	cfg := Config{

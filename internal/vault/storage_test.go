@@ -6,6 +6,8 @@ import (
 	"testing"
 )
 
+// TestWriteAndReadVaultFile verifies atomic write, 0600 permissions, and
+// round-trip JSON fidelity.
 func TestWriteAndReadVaultFile(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "vault.json")
@@ -72,6 +74,7 @@ func TestWriteAndReadVaultFile(t *testing.T) {
 	}
 }
 
+// TestReadVaultFileNotFound verifies that a missing file returns ErrVaultNotFound.
 func TestReadVaultFileNotFound(t *testing.T) {
 	_, err := ReadVaultFile("/nonexistent/path/vault.json")
 	if err != ErrVaultNotFound {
@@ -79,6 +82,7 @@ func TestReadVaultFileNotFound(t *testing.T) {
 	}
 }
 
+// TestReadVaultFileCorrupted verifies that invalid JSON is detected as corruption.
 func TestReadVaultFileCorrupted(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "vault.json")
@@ -93,6 +97,8 @@ func TestReadVaultFileCorrupted(t *testing.T) {
 	}
 }
 
+// TestWriteVaultFileCreatesDir verifies that WriteVaultFile creates parent
+// directories as needed.
 func TestWriteVaultFileCreatesDir(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "subdir", "vault.json")
@@ -113,6 +119,7 @@ func TestWriteVaultFileCreatesDir(t *testing.T) {
 	}
 }
 
+// TestWithFileLock verifies that the callback is executed while the lock is held.
 func TestWithFileLock(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "vault.json")

@@ -6,6 +6,9 @@ import (
 	"testing"
 )
 
+// TestFilesystemPushPull exercises the full push → remote-modify → pull cycle
+// for FilesystemBackend and verifies that a .bak backup is created before the
+// local file is overwritten.
 func TestFilesystemPushPull(t *testing.T) {
 	localDir := t.TempDir()
 	remoteDir := t.TempDir()
@@ -67,6 +70,8 @@ func TestFilesystemPushPull(t *testing.T) {
 	}
 }
 
+// TestFilesystemPushCreatesRemoteDir verifies that Push creates any missing
+// intermediate directories in the remote path.
 func TestFilesystemPushCreatesRemoteDir(t *testing.T) {
 	localDir := t.TempDir()
 	remoteDir := t.TempDir()
@@ -90,6 +95,8 @@ func TestFilesystemPushCreatesRemoteDir(t *testing.T) {
 	}
 }
 
+// TestFilesystemPullNoLocalBackup verifies that Pull does not create a .bak
+// file when no local vault exists yet (initial bootstrap scenario).
 func TestFilesystemPullNoLocalBackup(t *testing.T) {
 	remoteDir := t.TempDir()
 	localDir := t.TempDir()
@@ -116,6 +123,8 @@ func TestFilesystemPullNoLocalBackup(t *testing.T) {
 	}
 }
 
+// TestFilesystemPullNotFound verifies that Pull returns ErrRemoteNotFound
+// when the remote path does not exist.
 func TestFilesystemPullNotFound(t *testing.T) {
 	localDir := t.TempDir()
 	localPath := filepath.Join(localDir, "vault.json")
@@ -128,6 +137,8 @@ func TestFilesystemPullNotFound(t *testing.T) {
 	}
 }
 
+// TestFilesystemLastModified verifies ErrRemoteNotFound before any push and a
+// non-zero mod time after the remote file is created.
 func TestFilesystemLastModified(t *testing.T) {
 	dir := t.TempDir()
 	remotePath := filepath.Join(dir, "vault.json")
@@ -150,6 +161,8 @@ func TestFilesystemLastModified(t *testing.T) {
 	}
 }
 
+// TestCopyFileAtomic verifies that copyFile transfers all bytes correctly and
+// leaves no .tmp file behind after a successful copy.
 func TestCopyFileAtomic(t *testing.T) {
 	dir := t.TempDir()
 	src := filepath.Join(dir, "src.txt")
@@ -173,6 +186,8 @@ func TestCopyFileAtomic(t *testing.T) {
 	}
 }
 
+// TestCopyFileSourceNotFound verifies that copyFile returns an error when the
+// source path does not exist.
 func TestCopyFileSourceNotFound(t *testing.T) {
 	dir := t.TempDir()
 	err := copyFile("/nonexistent/file", filepath.Join(dir, "dst"))
@@ -181,6 +196,8 @@ func TestCopyFileSourceNotFound(t *testing.T) {
 	}
 }
 
+// TestCopyFilePreservesContent verifies that copyFile preserves every byte of
+// binary data, including values across the full 0–255 range.
 func TestCopyFilePreservesContent(t *testing.T) {
 	dir := t.TempDir()
 	src := filepath.Join(dir, "src.bin")
@@ -210,6 +227,9 @@ func TestCopyFilePreservesContent(t *testing.T) {
 
 // --- Git backend constructor tests ---
 
+// TestNewGitBackendDefaults verifies that NewGitBackend fills in the default
+// branch name ("vial-vault") and file name ("vault.json") when no branch is
+// supplied.
 func TestNewGitBackendDefaults(t *testing.T) {
 	g := NewGitBackend("/tmp/repo", "git@github.com:user/vault.git", "")
 	if g.Name() != "git" {
@@ -223,6 +243,8 @@ func TestNewGitBackendDefaults(t *testing.T) {
 	}
 }
 
+// TestNewGitBackendCustomBranch verifies that an explicit branch name overrides
+// the default.
 func TestNewGitBackendCustomBranch(t *testing.T) {
 	g := NewGitBackend("/tmp/repo", "", "custom-branch")
 	if g.branch != "custom-branch" {
@@ -230,6 +252,9 @@ func TestNewGitBackendCustomBranch(t *testing.T) {
 	}
 }
 
+// TestGitBackendEnsureRepoCreatesDir verifies that ensureRepo initialises a
+// git repository in a directory that does not exist yet, and that a second
+// call on an already-initialised repo is a no-op.
 func TestGitBackendEnsureRepoCreatesDir(t *testing.T) {
 	dir := t.TempDir()
 	repoDir := filepath.Join(dir, "new-repo")
@@ -251,6 +276,9 @@ func TestGitBackendEnsureRepoCreatesDir(t *testing.T) {
 	}
 }
 
+// TestGitBackendPushPullLocal exercises a full Push cycle using a local-only
+// git backend (no remote configured). It verifies that the vault file is
+// committed into the sync repo.
 func TestGitBackendPushPullLocal(t *testing.T) {
 	// Create a local vault file
 	localDir := t.TempDir()

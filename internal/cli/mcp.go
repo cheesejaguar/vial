@@ -12,6 +12,13 @@ import (
 	"github.com/cheesejaguar/vial/internal/mcp"
 )
 
+// mcpCmd starts the Model Context Protocol server that exposes vault
+// operations to AI coding tools (Claude Code, Cursor, etc.) over JSON-RPC 2.0
+// via stdin/stdout. The server runs until the process is killed; it does not
+// exit on its own.
+//
+// By default the server is read-only to limit blast radius from a compromised
+// AI session. Pass --allow-writes to enable vault_set and vault_remove.
 var mcpCmd = &cobra.Command{
 	Use:   "mcp",
 	Short: "Start MCP server for AI coding tools",
@@ -42,6 +49,9 @@ Configure in your MCP client:
 	RunE: runMCP,
 }
 
+// mcpAllowWrites gates write operations in the MCP server. When false (the
+// default), vault_set and vault_remove are not registered as available tools,
+// so AI clients cannot modify the vault even if they request it.
 var mcpAllowWrites bool
 
 func init() {
@@ -49,13 +59,20 @@ func init() {
 	rootCmd.AddCommand(mcpCmd)
 }
 
+// runMCP handles the mcp command. Status messages are written to stderr so
+// that stdout stays clean for the JSON-RPC 2.0 framing that MCP clients read.
+// The audit log is co-located with the vault file and records every tool call
+// made through the MCP interface.
 func runMCP(cmd *cobra.Command, args []string) error {
 	vm, err := requireUnlockedVault()
 	if err != nil {
 		return err
 	}
+	// Lock is deferred so the DEK is wiped from mlock'd memory when the
+	// server exits, even on panics or OS signals caught by Go's runtime.
 	defer vm.Lock()
 
+	// Announce mode on stderr before handing stdout to the JSON-RPC framer.
 	if mcpAllowWrites {
 		fmt.Fprintln(os.Stderr, "vial: MCP server starting (read-write mode)")
 	} else {
@@ -66,6 +83,8 @@ func runMCP(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	// Place audit.jsonl alongside the vault file so all vial data stays in
+	// one directory (~/.local/share/vial/).
 	auditPath := filepath.Join(filepath.Dir(cfg.VaultPath), "audit.jsonl")
 	auditLog := audit.NewLog(auditPath)
 

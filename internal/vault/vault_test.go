@@ -27,6 +27,8 @@ func newTestVault(t *testing.T) *VaultManager {
 	return vm
 }
 
+// TestVaultInitAndUnlock verifies the full init -> lock -> unlock cycle with
+// the same master password.
 func TestVaultInitAndUnlock(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "vault.json")
@@ -61,6 +63,8 @@ func TestVaultInitAndUnlock(t *testing.T) {
 	}
 }
 
+// TestVaultInitPasswordTooShort verifies that Init rejects passwords shorter
+// than the minimum length.
 func TestVaultInitPasswordTooShort(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "vault.json")
@@ -75,6 +79,8 @@ func TestVaultInitPasswordTooShort(t *testing.T) {
 	}
 }
 
+// TestVaultInitAlreadyExists verifies that Init refuses to overwrite an
+// existing vault file.
 func TestVaultInitAlreadyExists(t *testing.T) {
 	vm := newTestVault(t)
 
@@ -87,6 +93,8 @@ func TestVaultInitAlreadyExists(t *testing.T) {
 	}
 }
 
+// TestVaultUnlockWrongPassword verifies that Unlock returns ErrWrongPassword
+// when the master password does not match.
 func TestVaultUnlockWrongPassword(t *testing.T) {
 	vm := newTestVault(t)
 	vm.Lock()
@@ -100,6 +108,8 @@ func TestVaultUnlockWrongPassword(t *testing.T) {
 	}
 }
 
+// TestVaultSetGetSecret verifies that a secret can be stored and retrieved
+// with its original plaintext value intact.
 func TestVaultSetGetSecret(t *testing.T) {
 	vm := newTestVault(t)
 	defer vm.Lock()
@@ -122,6 +132,8 @@ func TestVaultSetGetSecret(t *testing.T) {
 	}
 }
 
+// TestVaultGetSecretNotFound verifies that GetSecret returns ErrSecretNotFound
+// for a non-existent key.
 func TestVaultGetSecretNotFound(t *testing.T) {
 	vm := newTestVault(t)
 	defer vm.Lock()
@@ -132,6 +144,8 @@ func TestVaultGetSecretNotFound(t *testing.T) {
 	}
 }
 
+// TestVaultSetSecretUpdatesExisting verifies that SetSecret overwrites an
+// existing key's value while preserving the key name.
 func TestVaultSetSecretUpdatesExisting(t *testing.T) {
 	vm := newTestVault(t)
 	defer vm.Lock()
@@ -159,6 +173,7 @@ func TestVaultSetSecretUpdatesExisting(t *testing.T) {
 	}
 }
 
+// TestVaultListSecrets verifies that ListSecrets returns all stored key names.
 func TestVaultListSecrets(t *testing.T) {
 	vm := newTestVault(t)
 	defer vm.Lock()
@@ -188,6 +203,7 @@ func TestVaultListSecrets(t *testing.T) {
 	}
 }
 
+// TestVaultRemoveSecret verifies that a removed key is no longer retrievable.
 func TestVaultRemoveSecret(t *testing.T) {
 	vm := newTestVault(t)
 	defer vm.Lock()
@@ -208,6 +224,8 @@ func TestVaultRemoveSecret(t *testing.T) {
 	}
 }
 
+// TestVaultRemoveSecretNotFound verifies that removing a non-existent key
+// returns ErrSecretNotFound.
 func TestVaultRemoveSecretNotFound(t *testing.T) {
 	vm := newTestVault(t)
 	defer vm.Lock()
@@ -218,6 +236,8 @@ func TestVaultRemoveSecretNotFound(t *testing.T) {
 	}
 }
 
+// TestVaultOperationsWhenLocked verifies that Set, Get, and Remove all return
+// ErrVaultLocked when the vault is locked.
 func TestVaultOperationsWhenLocked(t *testing.T) {
 	vm := newTestVault(t)
 	vm.Lock()
@@ -238,6 +258,8 @@ func TestVaultOperationsWhenLocked(t *testing.T) {
 	}
 }
 
+// TestVaultGetSetMetadata verifies that metadata (aliases, provider, tags) can
+// be stored and retrieved for a secret.
 func TestVaultGetSetMetadata(t *testing.T) {
 	vm := newTestVault(t)
 	defer vm.Lock()
@@ -270,6 +292,8 @@ func TestVaultGetSetMetadata(t *testing.T) {
 	}
 }
 
+// TestUnlockWithDEK_GarbageBytesRejected verifies that UnlockWithDEK rejects
+// invalid DEK bytes and leaves the vault locked.
 func TestUnlockWithDEK_GarbageBytesRejected(t *testing.T) {
 	vm := newTestVault(t)
 	defer vm.Lock()
@@ -294,6 +318,8 @@ func TestUnlockWithDEK_GarbageBytesRejected(t *testing.T) {
 	}
 }
 
+// TestValidateKeyName exercises valid and invalid POSIX environment variable
+// names against the key name validator.
 func TestValidateKeyName(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -333,6 +359,9 @@ func TestValidateKeyName(t *testing.T) {
 	}
 }
 
+// TestChangePassword verifies the full password rotation flow: change password,
+// unlock with new password, verify secrets survive, and confirm old password
+// is rejected.
 func TestChangePassword(t *testing.T) {
 	vm := newTestVault(t)
 	defer vm.Lock()
@@ -383,6 +412,8 @@ func TestChangePassword(t *testing.T) {
 	}
 }
 
+// TestSetSecretRejectsInvalidKeyName verifies that SetSecret rejects keys that
+// do not match POSIX env var naming rules.
 func TestSetSecretRejectsInvalidKeyName(t *testing.T) {
 	vm := newTestVault(t)
 	defer vm.Lock()
@@ -398,6 +429,8 @@ func TestSetSecretRejectsInvalidKeyName(t *testing.T) {
 	}
 }
 
+// TestVaultFullLifecycle exercises init, set, list, lock, unlock, get, and
+// remove in sequence to validate the complete vault workflow.
 func TestVaultFullLifecycle(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "vault.json")

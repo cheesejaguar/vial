@@ -6,6 +6,9 @@ import (
 	"testing"
 )
 
+// TestScanDirJavaScript verifies that the three JavaScript env-var access
+// idioms (process.env.KEY, process.env["KEY"], and import.meta.env.KEY) are
+// all detected when the file has a .js extension.
 func TestScanDirJavaScript(t *testing.T) {
 	dir := t.TempDir()
 
@@ -41,6 +44,8 @@ const port = process.env.PORT;
 	}
 }
 
+// TestScanDirPython verifies that all three Python env-var access forms
+// (os.environ["KEY"], os.environ.get("KEY"), os.getenv("KEY")) are detected.
 func TestScanDirPython(t *testing.T) {
 	dir := t.TempDir()
 
@@ -63,6 +68,8 @@ port = os.getenv("PORT")
 	}
 }
 
+// TestScanDirGo verifies that both os.Getenv and os.LookupEnv calls are
+// captured in .go source files.
 func TestScanDirGo(t *testing.T) {
 	dir := t.TempDir()
 
@@ -90,6 +97,8 @@ func main() {
 	}
 }
 
+// TestScanDirRuby verifies that ENV["KEY"] and ENV.fetch("KEY") are both
+// detected in .rb files.
 func TestScanDirRuby(t *testing.T) {
 	dir := t.TempDir()
 
@@ -109,6 +118,9 @@ db = ENV.fetch("DATABASE_URL")
 	}
 }
 
+// TestScanDirSkipsNodeModules ensures that the node_modules directory is
+// pruned from the walk and its contents are never scanned, while files in
+// sibling directories (e.g. src/) are still picked up correctly.
 func TestScanDirSkipsNodeModules(t *testing.T) {
 	dir := t.TempDir()
 
@@ -145,6 +157,8 @@ func TestScanDirSkipsNodeModules(t *testing.T) {
 	}
 }
 
+// TestScanResultFilterMissing verifies that FilterMissing correctly identifies
+// variables present in the scan but absent from the provided vault key set.
 func TestScanResultFilterMissing(t *testing.T) {
 	result := &ScanResult{
 		Refs: []EnvVarRef{
@@ -164,6 +178,9 @@ func TestScanResultFilterMissing(t *testing.T) {
 	}
 }
 
+// TestScanDirMultiLanguage verifies that a directory containing source files
+// from multiple languages is scanned correctly and results are grouped into
+// per-language buckets.
 func TestScanDirMultiLanguage(t *testing.T) {
 	dir := t.TempDir()
 
@@ -182,6 +199,8 @@ func TestScanDirMultiLanguage(t *testing.T) {
 	}
 }
 
+// writeTestFile is a test helper that writes content to a file named name
+// inside dir. It marks the calling test as a helper for clean failure output.
 func writeTestFile(t *testing.T, dir, name, content string) {
 	t.Helper()
 	if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0644); err != nil {

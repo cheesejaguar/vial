@@ -7,7 +7,9 @@ import (
 	"github.com/cheesejaguar/vial/internal/llm"
 )
 
-// mockProvider returns a canned LLM response for testing.
+// mockProvider returns a canned LLM response for testing without making real
+// network calls. The called field lets tests assert whether the provider was
+// invoked at all.
 type mockProvider struct {
 	response string
 	err      error
@@ -25,6 +27,8 @@ func (m *mockProvider) Complete(_ context.Context, _ llm.CompletionRequest) (*ll
 func (m *mockProvider) Name() string    { return "mock" }
 func (m *mockProvider) Available() bool { return true }
 
+// TestLLMMatcherSuccess verifies that a valid LLM response is accepted and
+// that the confidence is capped at 0.75 even when the model returns 0.9.
 func TestLLMMatcherSuccess(t *testing.T) {
 	mock := &mockProvider{
 		response: `{"match": "OPENAI_API_KEY", "confidence": 0.9, "reason": "common variant"}`,
@@ -50,6 +54,8 @@ func TestLLMMatcherSuccess(t *testing.T) {
 	}
 }
 
+// TestLLMMatcherNoMatch verifies that a "NO_MATCH" response from the model
+// results in nil being returned rather than an error.
 func TestLLMMatcherNoMatch(t *testing.T) {
 	mock := &mockProvider{
 		response: `{"match": "NO_MATCH", "confidence": 0.0, "reason": "no suitable match"}`,
@@ -65,6 +71,8 @@ func TestLLMMatcherNoMatch(t *testing.T) {
 	}
 }
 
+// TestLLMMatcherMalformedResponse verifies fail-open behavior: a non-JSON
+// response returns nil rather than propagating a parse error.
 func TestLLMMatcherMalformedResponse(t *testing.T) {
 	mock := &mockProvider{response: "not json at all"}
 	m := &LLMMatcher{Provider: mock}
@@ -78,6 +86,8 @@ func TestLLMMatcherMalformedResponse(t *testing.T) {
 	}
 }
 
+// TestLLMMatcherProviderNil verifies that a nil provider is handled gracefully
+// without panicking.
 func TestLLMMatcherProviderNil(t *testing.T) {
 	m := &LLMMatcher{Provider: nil}
 
@@ -90,6 +100,9 @@ func TestLLMMatcherProviderNil(t *testing.T) {
 	}
 }
 
+// TestLLMMatcherHallucinatedKey verifies that a key name returned by the model
+// that does not exist in the vault is rejected, preventing hallucinated keys
+// from propagating to the caller.
 func TestLLMMatcherHallucinatedKey(t *testing.T) {
 	mock := &mockProvider{
 		response: `{"match": "NONEXISTENT_KEY", "confidence": 0.9, "reason": "hallucinated"}`,
@@ -105,6 +118,8 @@ func TestLLMMatcherHallucinatedKey(t *testing.T) {
 	}
 }
 
+// TestLLMMatcherProviderError verifies fail-open behavior: a provider-level
+// error returns nil rather than surfacing the error to the caller.
 func TestLLMMatcherProviderError(t *testing.T) {
 	mock := &mockProvider{err: llm.ErrProviderError}
 	m := &LLMMatcher{Provider: mock}
@@ -118,6 +133,9 @@ func TestLLMMatcherProviderError(t *testing.T) {
 	}
 }
 
+// TestChainSkipsLLMWhenExactMatches verifies the chain's early-exit behavior:
+// the LLM provider must not be called when a high-confidence exact match
+// already satisfies the threshold.
 func TestChainSkipsLLMWhenExactMatches(t *testing.T) {
 	mock := &mockProvider{}
 	chain := NewChain(

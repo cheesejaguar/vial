@@ -6,6 +6,8 @@ import (
 	"testing"
 )
 
+// TestJSONImporter verifies the happy path: a valid flat JSON file is read
+// and its key-value pairs are returned as Secret values.
 func TestJSONImporter(t *testing.T) {
 	dir := t.TempDir()
 	jsonFile := filepath.Join(dir, "secrets.json")
@@ -42,6 +44,8 @@ func TestJSONImporter(t *testing.T) {
 	}
 }
 
+// TestJSONImporterNoArgs confirms that calling Import with no file path
+// returns an error rather than panicking.
 func TestJSONImporterNoArgs(t *testing.T) {
 	imp := &JSONImporter{}
 	_, err := imp.Import(nil)
@@ -50,6 +54,8 @@ func TestJSONImporterNoArgs(t *testing.T) {
 	}
 }
 
+// TestJSONImporterInvalidJSON confirms that a file containing non-JSON content
+// produces a descriptive error, not a silent empty result.
 func TestJSONImporterInvalidJSON(t *testing.T) {
 	dir := t.TempDir()
 	jsonFile := filepath.Join(dir, "bad.json")
@@ -62,6 +68,9 @@ func TestJSONImporterInvalidJSON(t *testing.T) {
 	}
 }
 
+// TestGetBackend verifies that every documented backend name resolves to a
+// non-nil Backend with the correct Name(), and that an unknown name returns
+// an error.
 func TestGetBackend(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -88,6 +97,8 @@ func TestGetBackend(t *testing.T) {
 	}
 }
 
+// TestIsEnvVarName covers both valid and invalid env var label patterns used
+// by the 1Password importer to decide which item fields to import.
 func TestIsEnvVarName(t *testing.T) {
 	tests := []struct {
 		input string

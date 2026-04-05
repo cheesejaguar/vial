@@ -7,6 +7,8 @@ import (
 	"github.com/awnumar/memguard"
 )
 
+// TestEncryptDecryptRoundTrip verifies AES-GCM encrypt-then-decrypt for various
+// payload types: short, empty, long, and binary data.
 func TestEncryptDecryptRoundTrip(t *testing.T) {
 	key, err := GenerateDEK()
 	if err != nil {
@@ -43,6 +45,8 @@ func TestEncryptDecryptRoundTrip(t *testing.T) {
 	}
 }
 
+// TestEncryptProducesUniqueNonces confirms that two encryptions of the same
+// plaintext produce different nonces (nonce reuse would break GCM security).
 func TestEncryptProducesUniqueNonces(t *testing.T) {
 	key, err := GenerateDEK()
 	if err != nil {
@@ -67,6 +71,8 @@ func TestEncryptProducesUniqueNonces(t *testing.T) {
 	}
 }
 
+// TestEncryptProducesUniqueCiphertexts confirms that identical plaintexts yield
+// different ciphertexts due to random nonces.
 func TestEncryptProducesUniqueCiphertexts(t *testing.T) {
 	key, err := GenerateDEK()
 	if err != nil {
@@ -91,6 +97,8 @@ func TestEncryptProducesUniqueCiphertexts(t *testing.T) {
 	}
 }
 
+// TestDecryptWithWrongKey verifies that GCM authentication rejects decryption
+// with a different key.
 func TestDecryptWithWrongKey(t *testing.T) {
 	key1, _ := GenerateDEK()
 	defer key1.Destroy()
@@ -108,6 +116,8 @@ func TestDecryptWithWrongKey(t *testing.T) {
 	}
 }
 
+// TestDecryptTamperedCiphertext verifies that GCM detects a single flipped bit
+// in the ciphertext.
 func TestDecryptTamperedCiphertext(t *testing.T) {
 	key, _ := GenerateDEK()
 	defer key.Destroy()
@@ -126,6 +136,8 @@ func TestDecryptTamperedCiphertext(t *testing.T) {
 	}
 }
 
+// TestEncryptInvalidKeySize verifies that EncryptAESGCM rejects keys that are
+// not exactly 32 bytes.
 func TestEncryptInvalidKeySize(t *testing.T) {
 	shortKey := memguard.NewBufferFromBytes([]byte("too-short"))
 	defer shortKey.Destroy()
@@ -136,6 +148,7 @@ func TestEncryptInvalidKeySize(t *testing.T) {
 	}
 }
 
+// TestGenerateDEK verifies that a generated DEK has the correct 32-byte size.
 func TestGenerateDEK(t *testing.T) {
 	dek, err := GenerateDEK()
 	if err != nil {
@@ -148,6 +161,7 @@ func TestGenerateDEK(t *testing.T) {
 	}
 }
 
+// TestGenerateNonce verifies that a generated nonce has the correct 12-byte size.
 func TestGenerateNonce(t *testing.T) {
 	nonce, err := GenerateNonce()
 	if err != nil {

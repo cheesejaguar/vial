@@ -8,6 +8,7 @@ import (
 
 // --- Tier 1: Exact ---
 
+// TestExactMatcherFound verifies that an exact vault key name returns confidence 1.0.
 func TestExactMatcherFound(t *testing.T) {
 	m := &ExactMatcher{}
 	results, err := m.Match("OPENAI_API_KEY", []string{"OPENAI_API_KEY", "STRIPE_KEY"})
@@ -25,6 +26,7 @@ func TestExactMatcherFound(t *testing.T) {
 	}
 }
 
+// TestExactMatcherNotFound verifies that a missing key returns nil, not an error.
 func TestExactMatcherNotFound(t *testing.T) {
 	m := &ExactMatcher{}
 	results, err := m.Match("MISSING_KEY", []string{"OPENAI_API_KEY", "STRIPE_KEY"})
@@ -36,6 +38,8 @@ func TestExactMatcherNotFound(t *testing.T) {
 	}
 }
 
+// TestExactMatcherCaseSensitive verifies that tier 1 does not fold case;
+// lowercase keys must not match their uppercase vault counterparts here.
 func TestExactMatcherCaseSensitive(t *testing.T) {
 	m := &ExactMatcher{}
 	results, _ := m.Match("openai_api_key", []string{"OPENAI_API_KEY"})
@@ -46,6 +50,8 @@ func TestExactMatcherCaseSensitive(t *testing.T) {
 
 // --- Tier 2: Normalize ---
 
+// TestNormalizeMatcherPrefixStrip verifies that framework prefixes are stripped
+// bidirectionally so that both the consumer and vault sides can carry the prefix.
 func TestNormalizeMatcherPrefixStrip(t *testing.T) {
 	m := &NormalizeMatcher{}
 	tests := []struct {
@@ -80,6 +86,7 @@ func TestNormalizeMatcherPrefixStrip(t *testing.T) {
 	}
 }
 
+// TestNormalizeMatcherNoMatch verifies that unrelated keys produce no results.
 func TestNormalizeMatcherNoMatch(t *testing.T) {
 	m := &NormalizeMatcher{}
 	results, _ := m.Match("COMPLETELY_DIFFERENT", []string{"OPENAI_API_KEY"})
@@ -90,6 +97,8 @@ func TestNormalizeMatcherNoMatch(t *testing.T) {
 
 // --- Tier 3: Alias ---
 
+// TestAliasMatcherUserDefined verifies that an explicit user-defined alias
+// resolves to the vault key with confidence 0.90.
 func TestAliasMatcherUserDefined(t *testing.T) {
 	store := alias.NewStore()
 	store.Set("OPENAI_KEY", "OPENAI_API_KEY")
@@ -110,6 +119,8 @@ func TestAliasMatcherUserDefined(t *testing.T) {
 	}
 }
 
+// TestAliasMatcherPatternRule verifies that a regex pattern rule can catch
+// keys that match the pattern and redirect them to the canonical vault key.
 func TestAliasMatcherPatternRule(t *testing.T) {
 	store := alias.NewStore()
 	rule, _ := alias.NewPatternRule(`.*STRIPE.*SECRET.*`, "STRIPE_SECRET_KEY")
@@ -128,6 +139,8 @@ func TestAliasMatcherPatternRule(t *testing.T) {
 	}
 }
 
+// TestAliasMatcherAutoVariant verifies that suffix variant detection expands
+// OPENAI_KEY → OPENAI_API_KEY without any explicit alias being configured.
 func TestAliasMatcherAutoVariant(t *testing.T) {
 	m := &AliasMatcher{Store: alias.NewStore()}
 
@@ -147,6 +160,8 @@ func TestAliasMatcherAutoVariant(t *testing.T) {
 	}
 }
 
+// TestAliasMatcherReverseVariant verifies the mirror case: when the vault has
+// the short form and the template requests the long form.
 func TestAliasMatcherReverseVariant(t *testing.T) {
 	m := &AliasMatcher{Store: alias.NewStore()}
 
@@ -165,6 +180,9 @@ func TestAliasMatcherReverseVariant(t *testing.T) {
 
 // --- Chain ---
 
+// TestChainTierPriority verifies that the chain returns the result from the
+// earliest tier that can match, and that an exact match (tier 1) wins over
+// an alias match (tier 3) when both are possible.
 func TestChainTierPriority(t *testing.T) {
 	store := alias.NewStore()
 	store.Set("ALIAS_KEY", "VAULT_KEY")
@@ -194,6 +212,8 @@ func TestChainTierPriority(t *testing.T) {
 	}
 }
 
+// TestChainReturnsNilWhenNoMatch verifies that Resolve returns nil (not an error)
+// when no tier produces any candidate.
 func TestChainReturnsNilWhenNoMatch(t *testing.T) {
 	chain := NewChain(&ExactMatcher{}, &NormalizeMatcher{})
 	result, _ := chain.Resolve("TOTALLY_DIFFERENT", []string{"OPENAI_API_KEY"})
@@ -202,6 +222,8 @@ func TestChainReturnsNilWhenNoMatch(t *testing.T) {
 	}
 }
 
+// TestChainResolveAll verifies that ResolveAll collects candidates from all
+// tiers without early-exiting, useful for debugging and dry-run output.
 func TestChainResolveAll(t *testing.T) {
 	store := alias.NewStore()
 	chain := NewChain(
