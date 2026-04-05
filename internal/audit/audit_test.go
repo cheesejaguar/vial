@@ -6,6 +6,8 @@ import (
 	"testing"
 )
 
+// TestRecordAndRead verifies that events are persisted and returned newest-first,
+// and that the limit parameter correctly caps the result set.
 func TestRecordAndRead(t *testing.T) {
 	dir := t.TempDir()
 	logPath := filepath.Join(dir, "audit.jsonl")
@@ -49,6 +51,8 @@ func TestRecordAndRead(t *testing.T) {
 	}
 }
 
+// TestReadEmpty confirms that reading a non-existent log file returns an empty
+// slice rather than an error, matching fresh-vault behaviour.
 func TestReadEmpty(t *testing.T) {
 	dir := t.TempDir()
 	log := NewLog(filepath.Join(dir, "nonexistent.jsonl"))
@@ -62,6 +66,8 @@ func TestReadEmpty(t *testing.T) {
 	}
 }
 
+// TestExportCSV checks that the CSV output includes the header row and at least
+// one event name from the provided entries.
 func TestExportCSV(t *testing.T) {
 	entries := []Entry{
 		{Event: EventPour, Keys: []string{"KEY1", "KEY2"}, Project: "/tmp/p"},

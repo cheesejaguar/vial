@@ -1,21 +1,65 @@
+<!--
+  +layout.svelte — Root application shell for the Vial dashboard SPA.
+
+  Responsibilities:
+    1. Auth bootstrap: reads the one-time Bearer token from the URL fragment
+       (#token=<hex>) on first load, persists it to sessionStorage via
+       setToken(), then immediately removes the fragment from the browser
+       history so the token never appears in back/forward navigation or
+       server logs.
+    2. Auth gate: renders child routes only when a token is present. When
+       unauthenticated (token missing or cleared after 401), shows a minimal
+       "Not Connected" prompt that tells the user to run `vial dashboard`.
+    3. Navigation: renders the persistent left sidebar with links to every
+       page. Active state is calculated per-link against the current pathname.
+    4. Lock action: the sidebar Lock button calls the /auth/lock API endpoint
+       which zeroes the in-memory DEK on the Go server, then silently swallows
+       the error because the vault may already be locked.
+
+  Auth flow detail:
+    The Go server appends #token=<hex> to the URL it opens in the browser.
+    HTTP fragments are client-only — they are never transmitted in the request
+    URI — so the token is not exposed in any network log. The layout strips the
+    fragment via history.replaceState() immediately after reading it, so the
+    clean URL is what the user sees and copies.
+-->
 <script>
 	import '../app.css';
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
 	import { setToken, hasToken, lockVault } from '$lib/api.js';
 
+	/** Slot content: the matched child route component. */
 	let { children } = $props();
+
+	/**
+	 * Whether the user has a valid session token in sessionStorage.
+	 * Starts false and is set synchronously in onMount after the fragment check,
+	 * so there is a single render cycle with the auth gate before the dashboard
+	 * becomes visible — this prevents a flash of authenticated content.
+	 */
 	let authenticated = $state(false);
 
 	onMount(() => {
 		const hash = window.location.hash;
+
+		// If the Go server appended the token as a URL fragment, extract and
+		// persist it, then rewrite the URL to the clean pathname. Using
+		// history.replaceState (not assign/href) avoids adding a new history
+		// entry, so the Back button behaves naturally.
 		if (hash.startsWith('#token=')) {
-			setToken(hash.substring(7));
+			setToken(hash.substring(7)); // substring(7) skips the '#token=' prefix
 			history.replaceState(null, '', window.location.pathname);
 		}
+
+		// Determine auth state after potentially storing the new token above.
 		authenticated = hasToken();
 	});
 
+	/**
+	 * Navigation items rendered in the sidebar. The icon character doubles as
+	 * a keyboard hint rendered in a small monospace badge beside each label.
+	 */
 	const nav = [
 		{ href: '/', label: 'Secrets', icon: 'K' },
 		{ href: '/projects', label: 'Projects', icon: 'P' },
@@ -25,20 +69,38 @@
 		{ href: '/settings', label: 'Settings', icon: 'S' },
 	];
 
+	/**
+	 * Returns true when the given nav href should be considered active for the
+	 * current pathname. The root '/' route requires an exact match to avoid
+	 * marking every route as active (all paths start with '/').
+	 *
+	 * @param {string} href — The nav item's href.
+	 * @param {string} pathname — The current URL pathname from $page.url.
+	 * @returns {boolean}
+	 */
 	function isActive(href, pathname) {
 		if (href === '/') return pathname === '/';
 		return pathname.startsWith(href);
 	}
 
+	/**
+	 * Sends the lock request to the Go server and intentionally swallows any
+	 * error. The vault may already be locked (e.g. the user locked it from the
+	 * CLI), in which case the API returns an error — but the desired end state
+	 * (locked vault) is already achieved, so surfacing an error would be noise.
+	 */
 	async function handleLock() {
 		try {
 			await lockVault();
-		} catch {}
+		} catch {
+			// Silently ignore — see note above.
+		}
 	}
 </script>
 
 <div class="shell">
 	<aside class="sidebar">
+		<!-- Brand mark: links back to the secrets (home) page -->
 		<a href="/" class="brand">
 			<span class="brand-mark">V</span>
 			<span class="brand-text">vial</span>
@@ -46,6 +108,8 @@
 
 		<nav class="nav">
 			{#each nav as item}
+				<!-- isActive() drives the .active CSS class, which highlights the
+				     current page and tints the keyboard-hint badge purple. -->
 				<a href={item.href} class="nav-item" class:active={isActive(item.href, $page.url.pathname)}>
 					<span class="nav-key">{item.icon}</span>
 					<span>{item.label}</span>
@@ -53,6 +117,8 @@
 			{/each}
 		</nav>
 
+		<!-- Lock button sits at the very bottom of the sidebar, separated from
+		     navigation by a border, so it's clearly a destructive action. -->
 		<div class="sidebar-bottom">
 			<button class="nav-item lock-btn" onclick={handleLock}>
 				<span class="nav-key">L</span>
@@ -63,8 +129,12 @@
 
 	<main class="main page-enter">
 		{#if authenticated}
+			<!-- Render the matched child route (secrets, projects, aliases, etc.) -->
 			{@render children()}
 		{:else}
+			<!-- Auth gate: shown when no token exists in sessionStorage.
+			     Instructs the user to run the CLI command that opens the
+			     dashboard with a fresh token in the URL fragment. -->
 			<div class="auth-gate">
 				<div class="auth-lock">
 					<svg

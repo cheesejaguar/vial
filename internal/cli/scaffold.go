@@ -12,6 +12,16 @@ import (
 	"github.com/cheesejaguar/vial/internal/scanner"
 )
 
+// scaffoldCmd scans a project's source code for environment variable references
+// and generates a .env.example file with one empty entry per discovered variable.
+// Each entry is preceded by a comment listing the source files and line numbers
+// where the variable is referenced, helping developers understand which part of
+// the codebase requires each secret.
+//
+// When the output file already exists, scaffold operates in merge mode by
+// default: it appends only the variables that are not already present, leaving
+// existing entries (and their comments) intact. Pass --overwrite to replace the
+// file entirely.
 var scaffoldCmd = &cobra.Command{
 	Use:   "scaffold [DIR]",
 	Short: "Auto-generate .env.example from source code",
@@ -30,8 +40,14 @@ Examples:
 }
 
 var (
+	// scaffoldOverwrite replaces the existing .env.example entirely when true.
+	// Default (false) preserves existing entries and appends only new ones.
 	scaffoldOverwrite bool
-	scaffoldOutput    string
+
+	// scaffoldOutput overrides the default output path (.env.example inside the
+	// target directory). Useful when a project keeps its template file in a
+	// non-standard location.
+	scaffoldOutput string
 )
 
 func init() {
@@ -40,6 +56,14 @@ func init() {
 	rootCmd.AddCommand(scaffoldCmd)
 }
 
+// runScaffold implements the "vial scaffold" command. The high-level flow is:
+//
+//  1. Scan all source files under the target directory for env var references.
+//  2. Build a deduplicated map from variable name to the list of source
+//     locations (file:line) where it is used.
+//  3. Sort the variable names alphabetically for deterministic output.
+//  4. Either merge new names into the existing .env.example or generate a
+//     fresh file, depending on the --overwrite flag and whether a file exists.
 func runScaffold(cmd *cobra.Command, args []string) error {
 	dir := "."
 	if len(args) > 0 {
@@ -54,12 +78,13 @@ func runScaffold(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	// Default output path follows cfg.EnvExample (usually ".env.example") so
+	// that the generated file is co-located with the project's source code.
 	outputPath := scaffoldOutput
 	if outputPath == "" {
 		outputPath = filepath.Join(absDir, cfg.EnvExample)
 	}
 
-	// Scan source code
 	fmt.Printf("🔍 Scanning %s for env var references...\n", mutedText(absDir))
 	result, err := scanner.ScanDir(absDir)
 	if err != nil {
@@ -73,11 +98,15 @@ func runScaffold(cmd *cobra.Command, args []string) error {
 
 	fmt.Printf("  %s\n", result.Summary())
 
-	// Build unique vars with source references
+	// varInfo groups a variable name with the deduplicated set of source
+	// locations so each generated comment lists every usage site.
 	type varInfo struct {
 		name  string
-		files []string
+		files []string // "relpath:line" entries
 	}
+
+	// Build varMap from scanner results, collapsing duplicate (name, location)
+	// pairs that arise when a variable is referenced more than once per file.
 	varMap := make(map[string]*varInfo)
 	for _, ref := range result.Refs {
 		relPath, _ := filepath.Rel(absDir, ref.File)
@@ -86,7 +115,8 @@ func runScaffold(cmd *cobra.Command, args []string) error {
 		}
 		loc := fmt.Sprintf("%s:%d", relPath, ref.Line)
 		if vi, ok := varMap[ref.Name]; ok {
-			// Deduplicate file references
+			// Deduplicate location strings — the same variable can be referenced
+			// on multiple lines in the same file.
 			found := false
 			for _, f := range vi.files {
 				if f == loc {
@@ -102,14 +132,16 @@ func runScaffold(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	// Sort variable names for deterministic output
+	// Sort alphabetically so the generated file has a stable order across runs,
+	// making diffs readable and avoiding spurious changes in version control.
 	varNames := make([]string, 0, len(varMap))
 	for name := range varMap {
 		varNames = append(varNames, name)
 	}
 	sort.Strings(varNames)
 
-	// Load existing .env.example if merging
+	// In merge mode, read the existing file and collect keys that are already
+	// present so we can skip them when building the new content block.
 	existingKeys := make(map[string]bool)
 	var existingContent string
 	if !scaffoldOverwrite {
@@ -127,11 +159,11 @@ func runScaffold(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	// Build new content
 	var lines []string
 
 	if existingContent != "" && !scaffoldOverwrite {
-		// Merge mode: append new vars to existing file
+		// Merge mode: preserve every line of the existing file and append a
+		// clearly demarcated section containing only the newly discovered vars.
 		lines = append(lines, strings.TrimRight(existingContent, "\n"))
 
 		var newVars []string
@@ -156,7 +188,9 @@ func runScaffold(cmd *cobra.Command, args []string) error {
 
 		fmt.Printf("  %s Added %s new variable(s) to %s\n", successIcon(), countText(fmt.Sprintf("%d", len(newVars))), filepath.Base(outputPath))
 	} else {
-		// Fresh generation
+		// Fresh generation: emit a standard file header followed by one block
+		// per variable. Each block contains a provenance comment and the
+		// empty KEY= assignment that tools like dotenv expect.
 		lines = append(lines, "# Environment variables for "+filepath.Base(absDir))
 		lines = append(lines, "# Generated by: vial scaffold")
 		lines = append(lines, "# Source: scanned project source code")
@@ -166,6 +200,7 @@ func runScaffold(cmd *cobra.Command, args []string) error {
 			vi := varMap[name]
 			lines = append(lines, fmt.Sprintf("# Used in: %s", strings.Join(vi.files, ", ")))
 			lines = append(lines, name+"=")
+			// Blank line between entries for readability; omit after the last one.
 			if i < len(varNames)-1 {
 				lines = append(lines, "")
 			}
@@ -174,6 +209,9 @@ func runScaffold(cmd *cobra.Command, args []string) error {
 		fmt.Printf("  %s Generated %s with %s variable(s)\n", successIcon(), boldText(filepath.Base(outputPath)), countText(fmt.Sprintf("%d", len(varNames))))
 	}
 
+	// Write with mode 0600 so the file is not world-readable. Developers may
+	// fill in real values for local testing before remembering to .gitignore it,
+	// so restrictive permissions provide a small safety margin.
 	content := strings.Join(lines, "\n") + "\n"
 	if err := os.WriteFile(outputPath, []byte(content), 0600); err != nil {
 		return fmt.Errorf("writing %s: %w", outputPath, err)

@@ -10,6 +10,10 @@ import (
 	"testing"
 )
 
+// TestEmbeddedFSContainsJSFiles verifies that the embedded filesystem contains
+// at least one compiled JavaScript file and that the MIME type resolved for the
+// .js extension is not empty or text/html. The test is skipped when the
+// dashboard has not been built yet (placeholder static/ directory).
 func TestEmbeddedFSContainsJSFiles(t *testing.T) {
 	staticFS, err := fs.Sub(frontendFS, "static")
 	if err != nil {
@@ -55,6 +59,9 @@ func TestEmbeddedFSContainsJSFiles(t *testing.T) {
 	}
 }
 
+// TestServeJSFileWithCorrectMIME verifies that serveStaticFile sets
+// Content-Type: application/javascript when serving a .js asset, and that the
+// response body is non-empty.
 func TestServeJSFileWithCorrectMIME(t *testing.T) {
 	staticFS, err := fs.Sub(frontendFS, "static")
 	if err != nil {
@@ -96,6 +103,8 @@ func TestServeJSFileWithCorrectMIME(t *testing.T) {
 	}
 }
 
+// TestServeIndexHTML verifies that a GET / request returns the SPA entry point
+// (index.html) with Content-Type: text/html.
 func TestServeIndexHTML(t *testing.T) {
 	staticFS, err := fs.Sub(frontendFS, "static")
 	if err != nil {

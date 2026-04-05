@@ -6,6 +6,8 @@ import (
 	"testing"
 )
 
+// TestRegistryAddListRemove exercises the core CRUD operations: adding two
+// projects, listing them, retrieving one by name, and removing one.
 func TestRegistryAddListRemove(t *testing.T) {
 	dir := t.TempDir()
 	regPath := filepath.Join(dir, "projects.json")
@@ -61,6 +63,8 @@ func TestRegistryAddListRemove(t *testing.T) {
 	}
 }
 
+// TestRegistryAddDuplicate confirms that registering the same directory twice
+// is a no-op and does not create a second entry.
 func TestRegistryAddDuplicate(t *testing.T) {
 	dir := t.TempDir()
 	regPath := filepath.Join(dir, "projects.json")
@@ -78,6 +82,8 @@ func TestRegistryAddDuplicate(t *testing.T) {
 	}
 }
 
+// TestRegistryAddNonexistentDir verifies that Add rejects a path that does not
+// exist on the filesystem.
 func TestRegistryAddNonexistentDir(t *testing.T) {
 	dir := t.TempDir()
 	r := NewRegistry(filepath.Join(dir, "projects.json"))
@@ -89,6 +95,8 @@ func TestRegistryAddNonexistentDir(t *testing.T) {
 	}
 }
 
+// TestRegistryPersistence ensures that a project added in one Registry instance
+// is visible after constructing a second instance that loads from the same file.
 func TestRegistryPersistence(t *testing.T) {
 	dir := t.TempDir()
 	regPath := filepath.Join(dir, "projects.json")
@@ -115,6 +123,7 @@ func TestRegistryPersistence(t *testing.T) {
 	}
 }
 
+// TestFindEnvFiles verifies that only files actually present on disk are returned.
 func TestFindEnvFiles(t *testing.T) {
 	dir := t.TempDir()
 
@@ -129,6 +138,8 @@ func TestFindEnvFiles(t *testing.T) {
 	}
 }
 
+// TestRegistryMarkPoured verifies that the LastPoured timestamp is set on
+// a registered project after a pour operation.
 func TestRegistryMarkPoured(t *testing.T) {
 	dir := t.TempDir()
 	regPath := filepath.Join(dir, "projects.json")

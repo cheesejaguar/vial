@@ -2,6 +2,8 @@ package vault
 
 import "errors"
 
+// Sentinel errors returned by vault operations. These are stable values that
+// callers (CLI, MCP server, dashboard API) can compare with errors.Is.
 var (
 	ErrVaultExists      = errors.New("vault already exists")
 	ErrVaultNotFound    = errors.New("vault file not found")
@@ -15,7 +17,10 @@ var (
 	ErrInvalidKeyName   = errors.New("invalid key name: must match [A-Za-z_][A-Za-z0-9_]* and be at most 256 characters")
 )
 
+// maxValueSize caps individual secret values at 1 MiB to prevent accidental
+// storage of large blobs (e.g., binary files) in the JSON vault.
 const maxValueSize = 1 << 20 // 1 MiB
 
-// MaxValueSizeExported returns the max value size for external use.
+// MaxValueSizeExported returns the maximum allowed secret value size in bytes.
+// It is exported for use in CLI validation messages.
 func MaxValueSizeExported() int { return maxValueSize }

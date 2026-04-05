@@ -14,6 +14,15 @@ import (
 	"github.com/cheesejaguar/vial/internal/vault"
 )
 
+// healthCmd reports the age and rotation status of every secret in the vault.
+// It is intended to help operators identify credentials that may have been
+// compromised due to long-lived use without rotation.
+//
+// Status thresholds (based on last-rotated timestamp, not created timestamp):
+//   - ok      — rotated within 90 days
+//   - warning — 90-180 days since last rotation
+//   - danger  — more than 180 days since last rotation
+//   - overdue — past the per-key rotation policy deadline (set via --set-rotation)
 var healthCmd = &cobra.Command{
 	Use:   "health",
 	Short: "Show secret health report",
@@ -32,9 +41,15 @@ Examples:
 	RunE: runHealth,
 }
 
+// Health flag state.
 var (
+	// healthSetRotation encodes a rotation policy assignment as KEY=DAYS.
+	// When set, the command updates the metadata for the named key instead
+	// of printing a report. Zero days removes the policy.
 	healthSetRotation string
-	healthJSON        bool
+	// healthJSON switches the output to a machine-readable JSON array so
+	// the report can be consumed by dashboards or external tooling.
+	healthJSON bool
 )
 
 func init() {
@@ -43,14 +58,27 @@ func init() {
 	rootCmd.AddCommand(healthCmd)
 }
 
+// secretHealthEntry holds the computed health information for a single secret.
+// It is intentionally separate from vault.SecretInfo so the health logic is
+// decoupled from the storage layer.
 type secretHealthEntry struct {
-	Key          string
-	AgeDays      int
-	RotatedDays  int
+	// Key is the vault key name.
+	Key string
+	// AgeDays is the number of days since the secret was first added to the
+	// vault (not necessarily when the value was last changed).
+	AgeDays int
+	// RotatedDays is the number of days since the secret value was last set
+	// (created or explicitly rotated). This is the primary health signal.
+	RotatedDays int
+	// RotationDays is the user-configured rotation policy in days (0 = none).
 	RotationDays int
-	Status       string
+	// Status is one of "ok", "warning", "danger", "overdue".
+	Status string
 }
 
+// runHealth is the Cobra RunE handler for the health command. It dispatches to
+// handleSetRotation when --set-rotation is provided; otherwise it builds and
+// prints (or JSON-encodes) the health report.
 func runHealth(cmd *cobra.Command, args []string) error {
 	vm, err := requireUnlockedVault()
 	if err != nil {
@@ -58,7 +86,8 @@ func runHealth(cmd *cobra.Command, args []string) error {
 	}
 	defer vm.Lock()
 
-	// Handle --set-rotation
+	// --set-rotation is a mutation, not a read; handle it before touching the
+	// report path.
 	if healthSetRotation != "" {
 		return handleSetRotation(vm, healthSetRotation)
 	}
@@ -100,6 +129,8 @@ func runHealth(cmd *cobra.Command, args []string) error {
 	}
 
 	fmt.Println()
+	// Summary counts are written to stderr so they appear even when stdout is
+	// piped, and so they do not pollute machine-readable stdout output.
 	if counts["overdue"] > 0 {
 		fmt.Fprintf(os.Stderr, "%s\n", warningMsg(fmt.Sprintf("%d secret(s) overdue for rotation", counts["overdue"])))
 	}
@@ -113,19 +144,30 @@ func runHealth(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
+// buildHealthReport converts a slice of vault.SecretInfo (raw storage metadata)
+// into a sorted slice of secretHealthEntry values with computed age and status.
+// The report is sorted so the most urgent secrets (overdue, then danger, then
+// warning) appear first; within a status tier, older secrets sort before newer
+// ones so the worst offenders are always at the top.
 func buildHealthReport(secrets []vault.SecretInfo, now time.Time) []secretHealthEntry {
 	var health []secretHealthEntry
 
 	for _, sec := range secrets {
+		// AgeDays measures time since the key was first created.
 		ageDays := int(math.Floor(now.Sub(sec.Metadata.Added).Hours() / 24))
+		// RotatedDays measures time since the value was last written. This is
+		// what the rotation thresholds apply to.
 		rotatedDays := int(math.Floor(now.Sub(sec.Metadata.Rotated).Hours() / 24))
 
 		status := "ok"
 		if sec.Metadata.RotationDays > 0 && rotatedDays > sec.Metadata.RotationDays {
+			// User has set a custom policy and the deadline has passed.
 			status = "overdue"
 		} else if rotatedDays > 180 {
+			// Hard danger threshold regardless of custom policy.
 			status = "danger"
 		} else if rotatedDays > 90 {
+			// Soft warning: approaching the default 180-day danger threshold.
 			status = "warning"
 		}
 
@@ -138,6 +180,8 @@ func buildHealthReport(secrets []vault.SecretInfo, now time.Time) []secretHealth
 		})
 	}
 
+	// Sort by urgency first, then by rotatedDays descending so the stalest
+	// secrets within each tier appear at the top of the list.
 	sort.Slice(health, func(i, j int) bool {
 		order := map[string]int{"overdue": 0, "danger": 1, "warning": 2, "ok": 3}
 		if order[health[i].Status] != order[health[j].Status] {
@@ -149,6 +193,9 @@ func buildHealthReport(secrets []vault.SecretInfo, now time.Time) []secretHealth
 	return health
 }
 
+// handleSetRotation parses a KEY=DAYS specification and updates the rotation
+// policy stored in the secret's metadata. Passing DAYS=0 removes the policy.
+// Only the metadata is updated; the secret value itself is not changed.
 func handleSetRotation(vm *vault.VaultManager, spec string) error {
 	parts := strings.SplitN(spec, "=", 2)
 	if len(parts) != 2 {
@@ -179,6 +226,9 @@ func handleSetRotation(vm *vault.VaultManager, spec string) error {
 	return nil
 }
 
+// styledStatusIcon returns a styled terminal icon that corresponds to the
+// health status. Uses the shared icon helpers from styles.go so colour is
+// automatically suppressed on non-TTY output.
 func styledStatusIcon(status string) string {
 	switch status {
 	case "ok":
@@ -194,6 +244,8 @@ func styledStatusIcon(status string) string {
 	}
 }
 
+// styledAge formats a "Xd old" string in the colour that matches the health
+// status. This ties the visual severity of the number directly to its meaning.
 func styledAge(days int, status string) string {
 	text := fmt.Sprintf("%dd old", days)
 	switch status {
@@ -208,6 +260,9 @@ func styledAge(days int, status string) string {
 	}
 }
 
+// printHealthJSON emits a JSON array of health entries to stdout. Values are
+// formatted inline (not via encoding/json) to keep the per-line structure
+// readable while remaining valid JSON.
 func printHealthJSON(health []secretHealthEntry) error {
 	fmt.Println("[")
 	for i, h := range health {

@@ -1,10 +1,53 @@
+<!--
+  health/+page.svelte — Secret health and rotation tracking page.
+
+  Shows summary statistics and per-secret age information to help the user
+  identify credentials that are overdue for rotation. The health data is
+  computed server-side by the Go backend based on each secret's creation or
+  last-updated timestamp stored in the vault metadata.
+
+  Visual design:
+    - Three summary stat cards: total secrets, total projects, stale count.
+    - The "stale" card turns amber when stale_count > 0 to draw attention.
+    - Each secret in the detail list has:
+        - A coloured status dot (green / amber / red by age threshold)
+        - An age progress bar capped at 180 days (the "critical" threshold)
+        - A numeric age label coloured by the same threshold classes
+
+  Age thresholds (mirrored from the Go health logic):
+    - ok      : < 90 days
+    - warning : 90–179 days
+    - danger  : ≥ 180 days
+-->
 <script>
 	import { onMount } from 'svelte';
 	import { fetchHealth } from '$lib/api.js';
 
+	// ---------------------------------------------------------------------------
+	// Page state (Svelte 5 runes)
+	// ---------------------------------------------------------------------------
+
+	/**
+	 * The health overview object returned by GET /api/health/overview.
+	 * Shape: {
+	 *   total_secrets: number,
+	 *   total_projects: number,
+	 *   stale_count: number,
+	 *   secrets: Array<{ key: string, age_days: number }>
+	 * }
+	 * @type {{ total_secrets: number, total_projects: number, stale_count: number, secrets: Array<{ key: string, age_days: number }> } | null}
+	 */
 	let health = $state(null);
+
+	/** True while the health fetch is in progress. */
 	let loading = $state(true);
+
+	/** Error string displayed below the header on fetch failure. */
 	let error = $state(null);
+
+	// ---------------------------------------------------------------------------
+	// Lifecycle
+	// ---------------------------------------------------------------------------
 
 	onMount(async () => {
 		try {
@@ -16,6 +59,20 @@
 		}
 	});
 
+	// ---------------------------------------------------------------------------
+	// Helpers
+	// ---------------------------------------------------------------------------
+
+	/**
+	 * Maps a secret's age in days to a CSS status class used for the dot,
+	 * progress bar fill, and age label colour. Thresholds align with common
+	 * security rotation recommendations:
+	 *   - 90 days: first warning (many compliance frameworks require quarterly rotation)
+	 *   - 180 days: danger threshold (six months without rotation is high risk)
+	 *
+	 * @param {number} days — Age of the secret in days.
+	 * @returns {'danger' | 'warning' | 'ok'} CSS modifier class.
+	 */
 	function statusClass(days) {
 		if (days > 180) return 'danger';
 		if (days > 90) return 'warning';
@@ -39,6 +96,9 @@
 	{:else if error}
 		<p class="error-text">{error}</p>
 	{:else if health}
+		<!-- Summary stat cards — rendered as a 3-column grid.
+		     The stale card gets a warning modifier class when stale_count > 0
+		     so the amber number draws the eye without needing an explicit alert. -->
 		<div class="stats">
 			<div class="stat card">
 				<span class="stat-val">{health.total_secrets}</span>
@@ -59,14 +119,23 @@
 			<div class="health-list">
 				{#each health.secrets as s, i}
 					<div class="health-row card animate-in stagger-{Math.min(i + 1, 10)}">
+						<!-- Status dot colour matches the age-fill and age-num classes below,
+						     giving three visual cues per row for accessibility. -->
 						<div class="status-dot {statusClass(s.age_days)}"></div>
 						<span class="key">{s.key}</span>
+
+						<!-- Age progress bar: width is capped at 100% so secrets older than
+						     180 days show a full bar rather than overflowing their container.
+						     The fill class drives the colour (green → amber → red). -->
 						<div class="age-track">
 							<div
 								class="age-fill {statusClass(s.age_days)}"
 								style="width: {Math.min((s.age_days / 180) * 100, 100)}%"
 							></div>
 						</div>
+
+						<!-- Numeric age label coloured by the same threshold class so the
+						     number itself communicates urgency without a tooltip. -->
 						<span class="age-num {statusClass(s.age_days)}">{s.age_days}d</span>
 					</div>
 				{/each}
@@ -118,6 +187,7 @@
 		font-size: 0.75rem;
 		color: var(--text-muted);
 	}
+	/* Amber number in the stale card when there are secrets overdue for rotation. */
 	.stat-warn .stat-val {
 		color: var(--warning);
 	}
@@ -149,6 +219,8 @@
 	.age-fill {
 		height: 100%;
 		border-radius: 2px;
+		/* CSS transition animates the bar width when the page first renders,
+		   making the relative ages easier to compare at a glance. */
 		transition: width 0.5s ease;
 	}
 	.age-fill.ok {

@@ -4,6 +4,7 @@ import (
 	"testing"
 )
 
+// TestStoreSetGetResolve verifies direct alias lookup and pattern-based resolution.
 func TestStoreSetGetResolve(t *testing.T) {
 	s := NewStore()
 
@@ -26,6 +27,7 @@ func TestStoreSetGetResolve(t *testing.T) {
 	}
 }
 
+// TestStoreAliasesFor verifies that all aliases pointing to a canonical key are returned.
 func TestStoreAliasesFor(t *testing.T) {
 	s := NewStore()
 	s.Set("OPENAI_KEY", "OPENAI_API_KEY")
@@ -38,6 +40,7 @@ func TestStoreAliasesFor(t *testing.T) {
 	}
 }
 
+// TestStoreRemove confirms that a deleted alias is no longer resolvable.
 func TestStoreRemove(t *testing.T) {
 	s := NewStore()
 	s.Set("ALIAS", "CANONICAL")
@@ -48,6 +51,8 @@ func TestStoreRemove(t *testing.T) {
 	}
 }
 
+// TestStorePatternRule verifies that a regex pattern rule resolves matching keys
+// and does not match unrelated keys.
 func TestStorePatternRule(t *testing.T) {
 	s := NewStore()
 
@@ -67,6 +72,8 @@ func TestStorePatternRule(t *testing.T) {
 	}
 }
 
+// TestStoreLoadFromVault confirms that bulk-loading vault alias metadata
+// populates the store correctly for all canonical keys.
 func TestStoreLoadFromVault(t *testing.T) {
 	s := NewStore()
 	s.LoadFromVault(map[string][]string{
@@ -82,6 +89,7 @@ func TestStoreLoadFromVault(t *testing.T) {
 	}
 }
 
+// TestNormalize verifies that framework prefixes are stripped and keys are uppercased.
 func TestNormalize(t *testing.T) {
 	tests := []struct {
 		input string
@@ -102,6 +110,8 @@ func TestNormalize(t *testing.T) {
 	}
 }
 
+// TestDetectVariants ensures that suffix-equivalence expansion and framework-prefix
+// stripping generate the expected alternative key names.
 func TestDetectVariants(t *testing.T) {
 	tests := []struct {
 		key     string
@@ -135,6 +145,7 @@ func TestDetectVariants(t *testing.T) {
 	}
 }
 
+// TestPatternRuleInvalid confirms that an invalid regular expression is rejected at construction time.
 func TestPatternRuleInvalid(t *testing.T) {
 	_, err := NewPatternRule("[invalid", "TARGET")
 	if err == nil {

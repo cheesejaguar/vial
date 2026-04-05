@@ -11,19 +11,29 @@ import (
 	"github.com/cheesejaguar/vial/internal/vault"
 )
 
-// ToolRegistry manages the available MCP tools.
+// ToolRegistry manages the set of MCP tools available on this server
+// instance. The available tool set is determined at construction time by the
+// allowWrites flag; it does not change while the server is running.
 type ToolRegistry struct {
-	vm          *vault.VaultManager
-	allowWrites bool
-	auditLog    *audit.Log
+	vm          *vault.VaultManager // vault access; may be nil in tests
+	allowWrites bool                // when false, vault_set and vault_remove are not registered
+	auditLog    *audit.Log          // optional; if nil, access events are not recorded
 }
 
-// NewToolRegistry creates a new tool registry.
+// NewToolRegistry constructs a [ToolRegistry]. Pass allowWrites = true only
+// when the user has explicitly opted in via --allow-writes, because mutation
+// tools increase the blast radius of a compromised MCP client. Pass nil for
+// auditLog to disable audit logging (useful in tests).
 func NewToolRegistry(vm *vault.VaultManager, allowWrites bool, auditLog *audit.Log) *ToolRegistry {
 	return &ToolRegistry{vm: vm, allowWrites: allowWrites, auditLog: auditLog}
 }
 
-// ListTools returns all available tool definitions.
+// ListTools returns the complete list of [ToolDefinition] values that this
+// server advertises. The base set of four read-only tools is always present;
+// vault_set and vault_remove are appended only when allowWrites is true.
+//
+// The returned slice is freshly allocated on each call and can be mutated
+// freely by the caller.
 func (r *ToolRegistry) ListTools() []ToolDefinition {
 	tools := []ToolDefinition{
 		{
@@ -112,7 +122,14 @@ func (r *ToolRegistry) ListTools() []ToolDefinition {
 	return tools
 }
 
-// CallTool executes a tool and returns the result.
+// CallTool dispatches a tool call by name and returns the result. Every
+// call first checks that the vault is unlocked; a locked vault returns an
+// error result rather than a JSON-RPC protocol error so the AI client can
+// surface a human-readable message.
+//
+// Write tools (vault_set, vault_remove) return an error result when
+// allowWrites is false, even if they were somehow called — this is a
+// defence-in-depth check beyond the tool not being advertised in ListTools.
 func (r *ToolRegistry) CallTool(name string, args map[string]interface{}) *CallToolResult {
 	if !r.vm.IsUnlocked() {
 		return errorResult("vault is locked — unlock it first with 'vial uncork'")
@@ -142,6 +159,8 @@ func (r *ToolRegistry) CallTool(name string, args map[string]interface{}) *CallT
 	}
 }
 
+// handleList returns all key names, alphabetically sorted. Values are never
+// included in the response, so this call is safe to make in any context.
 func (r *ToolRegistry) handleList() *CallToolResult {
 	keys, err := r.vm.VaultKeyNames()
 	if err != nil {
@@ -156,6 +175,9 @@ func (r *ToolRegistry) handleList() *CallToolResult {
 	return textResult(fmt.Sprintf("Vault contains %d secret(s):\n%s", len(keys), strings.Join(keys, "\n")))
 }
 
+// handleGet retrieves a single secret value. The caller (i.e. the AI model)
+// receives the plaintext value, so every successful retrieval is recorded in
+// the audit log with the "via MCP" tag.
 func (r *ToolRegistry) handleGet(args map[string]interface{}) *CallToolResult {
 	key, ok := args["key"].(string)
 	if !ok || key == "" {
@@ -166,6 +188,8 @@ func (r *ToolRegistry) handleGet(args map[string]interface{}) *CallToolResult {
 	if err != nil {
 		return errorResult(fmt.Sprintf("secret %q not found", key))
 	}
+	// Copy out of guarded memory before destroying the buffer; the string is
+	// sent over the JSON-RPC transport and not retained by this package.
 	result := string(val.Bytes())
 	val.Destroy()
 
@@ -176,6 +200,8 @@ func (r *ToolRegistry) handleGet(args map[string]interface{}) *CallToolResult {
 	return textResult(result)
 }
 
+// handleSearch performs a case-insensitive substring match against all key
+// names. Only matching key names are returned — values are never included.
 func (r *ToolRegistry) handleSearch(args map[string]interface{}) *CallToolResult {
 	query, ok := args["query"].(string)
 	if !ok || query == "" {
@@ -187,6 +213,7 @@ func (r *ToolRegistry) handleSearch(args map[string]interface{}) *CallToolResult
 		return errorResult(fmt.Sprintf("listing keys: %v", err))
 	}
 
+	// Normalise to uppercase once rather than on every iteration.
 	queryUpper := strings.ToUpper(query)
 	var matches []string
 	for _, key := range keys {
@@ -202,6 +229,12 @@ func (r *ToolRegistry) handleSearch(args map[string]interface{}) *CallToolResult
 	return textResult(fmt.Sprintf("Found %d match(es):\n%s", len(matches), strings.Join(matches, "\n")))
 }
 
+// handleHealth computes the age and rotation status of every secret and
+// returns a JSON array. Status values:
+//   - "ok"      — within rotation window or no window set and age <= 90 days
+//   - "aging"   — 90–180 days without a rotation window
+//   - "stale"   — over 180 days without a rotation window
+//   - "overdue" — past the explicitly configured rotation deadline
 func (r *ToolRegistry) handleHealth() *CallToolResult {
 	secrets := r.vm.ListSecrets()
 	if len(secrets) == 0 {
@@ -211,7 +244,7 @@ func (r *ToolRegistry) handleHealth() *CallToolResult {
 	type healthInfo struct {
 		Key          string `json:"key"`
 		AgeDays      int    `json:"age_days"`
-		RotationDays int    `json:"rotation_days,omitempty"`
+		RotationDays int    `json:"rotation_days,omitempty"` // 0 means no rotation policy
 		Status       string `json:"status"`
 	}
 
@@ -239,6 +272,9 @@ func (r *ToolRegistry) handleHealth() *CallToolResult {
 	return textResult(string(data))
 }
 
+// handleSet stores a new or updated secret. The value is placed in a
+// memguard-protected buffer before being passed to the vault so it benefits
+// from mlock'd memory during the encryption step.
 func (r *ToolRegistry) handleSet(args map[string]interface{}) *CallToolResult {
 	key, _ := args["key"].(string)
 	value, _ := args["value"].(string)
@@ -246,7 +282,8 @@ func (r *ToolRegistry) handleSet(args map[string]interface{}) *CallToolResult {
 		return errorResult("'key' and 'value' parameters are required")
 	}
 
-	// Use memguard for the value
+	// Wrap the value in a locked buffer so that the vault layer receives key
+	// material in the expected form and can clear it from memory after use.
 	val := newLockedBuffer([]byte(value))
 	defer val.Destroy()
 
@@ -261,6 +298,7 @@ func (r *ToolRegistry) handleSet(args map[string]interface{}) *CallToolResult {
 	return textResult(fmt.Sprintf("✓ Stored %s", key))
 }
 
+// handleRemove permanently deletes a secret from the vault.
 func (r *ToolRegistry) handleRemove(args map[string]interface{}) *CallToolResult {
 	key, _ := args["key"].(string)
 	if key == "" {
@@ -278,12 +316,19 @@ func (r *ToolRegistry) handleRemove(args map[string]interface{}) *CallToolResult
 	return textResult(fmt.Sprintf("✓ Removed %s", key))
 }
 
+// textResult constructs a successful [CallToolResult] containing a single
+// plain-text content block.
 func textResult(text string) *CallToolResult {
 	return &CallToolResult{
 		Content: []ContentBlock{{Type: "text", Text: text}},
 	}
 }
 
+// errorResult constructs a [CallToolResult] that signals a tool-level failure.
+// The IsError flag tells MCP clients to treat this as an error even though
+// the JSON-RPC call itself succeeded. This distinction lets AI clients
+// surface the error message to the user without triggering retry logic meant
+// for protocol errors.
 func errorResult(msg string) *CallToolResult {
 	return &CallToolResult{
 		Content: []ContentBlock{{Type: "text", Text: msg}},

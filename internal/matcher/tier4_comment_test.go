@@ -4,6 +4,8 @@ import (
 	"testing"
 )
 
+// TestCommentMatcherBasic verifies that service-name vocabulary expansion
+// correctly maps comment keywords to vault keys across different service types.
 func TestCommentMatcherBasic(t *testing.T) {
 	m := &CommentMatcher{}
 	vault := []string{"STRIPE_SECRET_KEY", "STRIPE_PUBLISHABLE_KEY", "OPENAI_API_KEY", "DATABASE_URL"}
@@ -41,6 +43,8 @@ func TestCommentMatcherBasic(t *testing.T) {
 	}
 }
 
+// TestCommentMatcherEmptyComment verifies that an empty comment produces no results
+// rather than a spurious match or an error.
 func TestCommentMatcherEmptyComment(t *testing.T) {
 	m := &CommentMatcher{}
 	results, _ := m.MatchWithComment("KEY", "", []string{"OPENAI_API_KEY"})
@@ -49,6 +53,8 @@ func TestCommentMatcherEmptyComment(t *testing.T) {
 	}
 }
 
+// TestCommentMatcherNoMatch verifies that comments with no vocabulary overlap
+// do not produce results, guarding against false positives on generic text.
 func TestCommentMatcherNoMatch(t *testing.T) {
 	m := &CommentMatcher{}
 	results, _ := m.MatchWithComment("KEY", "completely unrelated comment about nothing", []string{"OPENAI_API_KEY"})
@@ -57,6 +63,8 @@ func TestCommentMatcherNoMatch(t *testing.T) {
 	}
 }
 
+// TestExtractKeywords verifies that extractKeywords correctly tokenizes comment
+// text and removes stop words while preserving meaningful terms.
 func TestExtractKeywords(t *testing.T) {
 	tests := []struct {
 		comment string
@@ -81,6 +89,8 @@ func TestExtractKeywords(t *testing.T) {
 	}
 }
 
+// TestKeywordOverlap verifies the overlap scoring function across direct matches,
+// service-name expansions, and cases with no common terms.
 func TestKeywordOverlap(t *testing.T) {
 	tests := []struct {
 		name    string

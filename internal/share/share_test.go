@@ -5,6 +5,8 @@ import (
 	"time"
 )
 
+// TestCreateAndOpenBundle verifies the full round-trip: encrypt secrets into a
+// bundle and then decrypt them back with the correct passphrase.
 func TestCreateAndOpenBundle(t *testing.T) {
 	secrets := map[string]string{
 		"OPENAI_API_KEY":    "sk-abc123",
@@ -40,6 +42,8 @@ func TestCreateAndOpenBundle(t *testing.T) {
 	}
 }
 
+// TestOpenBundleWrongPassphrase confirms that AES-GCM authentication rejects
+// a bundle opened with the wrong passphrase.
 func TestOpenBundleWrongPassphrase(t *testing.T) {
 	secrets := map[string]string{"KEY": "value"}
 	bundle, _ := CreateBundle(secrets, "correct", 24*time.Hour)
@@ -50,6 +54,8 @@ func TestOpenBundleWrongPassphrase(t *testing.T) {
 	}
 }
 
+// TestOpenBundleExpired verifies that a bundle created with a negative duration
+// (already in the past) is rejected before attempting decryption.
 func TestOpenBundleExpired(t *testing.T) {
 	secrets := map[string]string{"KEY": "value"}
 	bundle, _ := CreateBundle(secrets, "pass", -1*time.Hour) // already expired
@@ -60,6 +66,8 @@ func TestOpenBundleExpired(t *testing.T) {
 	}
 }
 
+// TestMarshalUnmarshal verifies that a bundle survives a JSON serialization
+// round-trip and that the decrypted secrets are still correct afterwards.
 func TestMarshalUnmarshal(t *testing.T) {
 	secrets := map[string]string{"KEY": "value"}
 	bundle, _ := CreateBundle(secrets, "pass", 24*time.Hour)
@@ -81,7 +89,7 @@ func TestMarshalUnmarshal(t *testing.T) {
 		t.Error("key count mismatch")
 	}
 
-	// Verify we can still decrypt
+	// Verify we can still decrypt after round-tripping through JSON.
 	payload, err := OpenBundle(parsed, "pass")
 	if err != nil {
 		t.Fatal(err)

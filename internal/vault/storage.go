@@ -8,10 +8,15 @@ import (
 	"syscall"
 )
 
+// vaultFilePerms restricts the vault file to owner-only read/write (0600).
+// This prevents other users on the system from reading encrypted secrets.
 const vaultFilePerms = 0600
 
-// ReadVaultFile reads and parses the vault file from disk.
-// The caller must hold or acquire a lock before calling this in a write context.
+// ReadVaultFile reads and parses the JSON vault file at the given path.
+// In a read-modify-write context the caller must hold a file lock (see
+// WithFileLock) before calling this function. For read-only operations such
+// as GetSecret or ListSecrets, no lock is required because the vault file is
+// always written atomically via rename.
 func ReadVaultFile(path string) (*VaultFile, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -29,8 +34,11 @@ func ReadVaultFile(path string) (*VaultFile, error) {
 	return &vf, nil
 }
 
-// WriteVaultFile atomically writes the vault file to disk.
-// It writes to a temp file first then renames, preventing corruption on crash.
+// WriteVaultFile atomically writes the vault file to disk with 0600 permissions.
+// It serializes to a .tmp file first, then renames over the target path. This
+// ensures that a crash or power loss during the write never leaves a truncated
+// or partially-written vault file. The parent directory is created with 0700
+// permissions if it does not exist.
 func WriteVaultFile(path string, vf *VaultFile) error {
 	data, err := json.MarshalIndent(vf, "", "  ")
 	if err != nil {
@@ -42,27 +50,34 @@ func WriteVaultFile(path string, vf *VaultFile) error {
 		return fmt.Errorf("creating vault directory: %w", err)
 	}
 
+	// Write to a temporary file alongside the vault, then atomically rename.
+	// On POSIX systems, rename is atomic within the same filesystem.
 	tmp := path + ".tmp"
 	if err := os.WriteFile(tmp, data, vaultFilePerms); err != nil {
 		return fmt.Errorf("writing temp vault file: %w", err)
 	}
 
 	if err := os.Rename(tmp, path); err != nil {
-		os.Remove(tmp) // best-effort cleanup
+		os.Remove(tmp) // best-effort cleanup on rename failure
 		return fmt.Errorf("renaming vault file: %w", err)
 	}
 
 	return nil
 }
 
-// WithFileLock acquires an exclusive file lock on the vault file for the
-// duration of fn. This prevents concurrent read-modify-write corruption.
+// WithFileLock acquires an exclusive advisory lock (syscall.Flock LOCK_EX) on
+// a .lock sidecar file for the duration of fn, then releases it. This
+// serializes concurrent read-modify-write operations on the vault file from
+// multiple processes (e.g., parallel CLI invocations). The lock file is created
+// in the same directory as the vault with 0600 permissions.
 func WithFileLock(path string, fn func() error) error {
 	dir := filepath.Dir(path)
 	if err := os.MkdirAll(dir, 0700); err != nil {
 		return fmt.Errorf("creating vault directory: %w", err)
 	}
 
+	// Use a separate .lock file rather than locking the vault file itself,
+	// because the vault file is atomically replaced via rename on each write.
 	lockPath := path + ".lock"
 	f, err := os.OpenFile(lockPath, os.O_CREATE|os.O_RDWR, 0600)
 	if err != nil {

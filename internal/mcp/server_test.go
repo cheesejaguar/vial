@@ -7,6 +7,8 @@ import (
 	"testing"
 )
 
+// TestServerInitialize verifies that the "initialize" request returns the
+// correct server name and a non-nil tools capability.
 func TestServerInitialize(t *testing.T) {
 	input := `{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","clientInfo":{"name":"test","version":"1.0"}}}` + "\n"
 	output := &bytes.Buffer{}
@@ -45,6 +47,9 @@ func TestServerInitialize(t *testing.T) {
 	}
 }
 
+// TestServerToolsList confirms that the read-only tool set contains exactly
+// four tools and that enabling writes adds vault_set and vault_remove (six
+// total).
 func TestServerToolsList(t *testing.T) {
 	input := `{"jsonrpc":"2.0","id":2,"method":"tools/list"}` + "\n"
 	output := &bytes.Buffer{}
@@ -94,6 +99,8 @@ func TestServerToolsList(t *testing.T) {
 	}
 }
 
+// TestServerPing verifies that the "ping" method returns a successful empty
+// result, confirming liveness check support.
 func TestServerPing(t *testing.T) {
 	input := `{"jsonrpc":"2.0","id":4,"method":"ping"}` + "\n"
 	output := &bytes.Buffer{}
@@ -114,6 +121,8 @@ func TestServerPing(t *testing.T) {
 	}
 }
 
+// TestServerUnknownMethod verifies that an unrecognised method name returns a
+// -32601 "method not found" error, as required by JSON-RPC 2.0.
 func TestServerUnknownMethod(t *testing.T) {
 	input := `{"jsonrpc":"2.0","id":5,"method":"nonexistent"}` + "\n"
 	output := &bytes.Buffer{}

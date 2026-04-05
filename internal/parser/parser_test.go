@@ -7,6 +7,10 @@ import (
 	"testing"
 )
 
+// TestParseBasic covers the common single-line cases that every real-world
+// .env file is likely to contain: plain values, empty values, bare keys,
+// the export prefix, full-line comments, blank lines, inline comments,
+// values with extra "=" characters, and both quoting styles.
 func TestParseBasic(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -124,6 +128,10 @@ func TestParseBasic(t *testing.T) {
 	}
 }
 
+// TestParseDoubleQuotedEscapes verifies that all recognised backslash escape
+// sequences inside double-quoted values are expanded to their intended bytes,
+// and that unknown sequences are preserved unchanged rather than silently
+// dropping the backslash.
 func TestParseDoubleQuotedEscapes(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -155,6 +163,9 @@ func TestParseDoubleQuotedEscapes(t *testing.T) {
 	}
 }
 
+// TestParseMultiLineDoubleQuoted verifies that a double-quoted value whose
+// closing quote appears on a later line is accumulated across lines and
+// presented as a single value containing embedded newlines.
 func TestParseMultiLineDoubleQuoted(t *testing.T) {
 	input := "KEY=\"line1\nline2\nline3\""
 	entries, err := Parse(strings.NewReader(input))
@@ -170,6 +181,9 @@ func TestParseMultiLineDoubleQuoted(t *testing.T) {
 	}
 }
 
+// TestParseSingleQuotedLiteral verifies that escape sequences inside
+// single-quoted values are NOT processed — the backslash-n is two characters,
+// not a newline. This matches POSIX single-quote semantics.
 func TestParseSingleQuotedLiteral(t *testing.T) {
 	// Single-quoted values should NOT process escapes
 	input := `KEY='hello\nworld'`
@@ -182,6 +196,8 @@ func TestParseSingleQuotedLiteral(t *testing.T) {
 	}
 }
 
+// TestParseQuotedWithInlineComment ensures that an inline comment following a
+// closing double-quote is captured in Comment and excluded from Value.
 func TestParseQuotedWithInlineComment(t *testing.T) {
 	input := `KEY="value" # this is a comment`
 	entries, err := Parse(strings.NewReader(input))
@@ -196,6 +212,10 @@ func TestParseQuotedWithInlineComment(t *testing.T) {
 	}
 }
 
+// TestParseMultiLine exercises a realistic .env.example file that uses a
+// mix of comments, blank lines, export-prefixed keys, inline comments, and
+// empty values. It verifies that the total entry count, specific key values,
+// the export flag, and inline comments are all parsed correctly.
 func TestParseMultiLine(t *testing.T) {
 	input := `# Database config
 DATABASE_URL=postgresql://localhost/mydb
@@ -228,6 +248,10 @@ MAPBOX_TOKEN=
 	}
 }
 
+// TestKeysNeeded verifies that KeysNeeded returns only the keys that have an
+// actual variable name, excluding comment and blank entries. It also confirms
+// that bare keys (no "=") are included because the vault still needs to supply
+// a value for them.
 func TestKeysNeeded(t *testing.T) {
 	input := `# Comment
 API_KEY=abc
@@ -250,6 +274,9 @@ EMPTY_KEY
 	}
 }
 
+// TestInterpolate covers the four supported reference forms ($VAR, ${VAR},
+// ${VAR:-default}, ${VAR-default}) plus edge cases like a trailing dollar sign,
+// a missing variable, and the distinction between the ":-" and "-" defaults.
 func TestInterpolate(t *testing.T) {
 	lookup := func(key string) (string, bool) {
 		m := map[string]string{
@@ -289,6 +316,9 @@ func TestInterpolate(t *testing.T) {
 	}
 }
 
+// TestWriteEnvFile verifies that WriteEnvFile produces a file that preserves
+// comments and blank lines from the entry list, substitutes resolved secret
+// values for template placeholders, and writes the file with 0600 permissions.
 func TestWriteEnvFile(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, ".env")
@@ -331,6 +361,9 @@ func TestWriteEnvFile(t *testing.T) {
 	}
 }
 
+// TestQuoteIfNeeded verifies that values requiring quoting are wrapped in
+// double quotes with internal special characters properly escaped, while
+// simple alphanumeric values and empty strings are left unquoted.
 func TestQuoteIfNeeded(t *testing.T) {
 	tests := []struct {
 		input string

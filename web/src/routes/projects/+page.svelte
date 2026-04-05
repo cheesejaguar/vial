@@ -1,14 +1,61 @@
+<!--
+  projects/+page.svelte — Project management page.
+
+  A "project" in Vial is a registered directory that `vial pour` writes
+  secrets into (as a .env file or similar). Registering a project lets the
+  matching engine know which vault keys a project needs, and lets the audit
+  log record which project triggered a secret access.
+
+  This page allows the user to:
+    - View all registered projects with their filesystem path, detected env
+      files, and the date secrets were last poured.
+    - Register a new project directory via a modal form.
+    - Unregister (remove) a project with a confirmation prompt.
+
+  Unregistering a project does not modify or delete any .env files that were
+  previously written to that directory — it only removes the project record
+  from vial's configuration.
+-->
 <script>
 	import { onMount } from 'svelte';
 	import { fetchProjects, addProject, removeProject } from '$lib/api.js';
 
+	// ---------------------------------------------------------------------------
+	// Page state (Svelte 5 runes)
+	// ---------------------------------------------------------------------------
+
+	/**
+	 * The list of registered project objects returned by GET /api/projects.
+	 * Each object has at minimum: { name: string, path: string }
+	 * Optional fields: env_files?: string[], last_poured?: string (ISO timestamp)
+	 * @type {Array<{ name: string, path: string, env_files?: string[], last_poured?: string }>}
+	 */
 	let projects = $state([]);
+
+	/** True while the initial projects fetch is in progress. */
 	let loading = $state(true);
+
+	/** Page-level error string shown below the header on fetch failure. */
 	let error = $state(null);
+
+	/** Controls visibility of the "Register Project" modal. */
 	let showAdd = $state(false);
+
+	/** Form field: absolute filesystem path to the project directory. */
 	let newPath = $state('');
+
+	/** Validation / server error shown inside the modal. */
 	let addError = $state('');
+
+	/**
+	 * Transient success notification.
+	 * @type {string | null}
+	 */
 	let toast = $state(null);
+
+	// ---------------------------------------------------------------------------
+	// Lifecycle
+	// ---------------------------------------------------------------------------
 
 	onMount(async () => {
 		try {
@@ -20,19 +67,42 @@
 		}
 	});
 
+	// ---------------------------------------------------------------------------
+	// Helpers
+	// ---------------------------------------------------------------------------
+
+	/**
+	 * Shows a success toast for 2.5 s then clears it.
+	 * @param {string} msg
+	 */
 	function showToast(msg) {
 		toast = msg;
 		setTimeout(() => (toast = null), 2500);
 	}
 
+	// ---------------------------------------------------------------------------
+	// Handlers
+	// ---------------------------------------------------------------------------
+
+	/**
+	 * Validates the path field then registers the directory with the Go server.
+	 * Re-fetches the full project list after success to pick up the project name
+	 * derived by the server from the directory basename.
+	 */
 	async function handleAdd() {
 		addError = '';
+
+		// Client-side guard: the API will also reject an empty path, but checking
+		// here avoids a network round trip for the most common mistake.
 		if (!newPath.trim()) {
 			addError = 'Path is required';
 			return;
 		}
+
 		try {
 			await addProject(newPath.trim());
+			// Re-fetch so the list includes the server-derived project name and any
+			// detected env files from the registered directory.
 			projects = (await fetchProjects()) || [];
 			showAdd = false;
 			newPath = '';
@@ -42,10 +112,20 @@
 		}
 	}
 
+	/**
+	 * Asks the user to confirm before unregistering the project. On confirm,
+	 * calls the API then optimistically removes the entry from the local list.
+	 *
+	 * The project is identified by name (not path) because the name is the
+	 * stable identifier used in the API route: DELETE /api/projects/:name
+	 *
+	 * @param {string} name — The project's name (basename of its directory).
+	 */
 	async function handleRemove(name) {
 		if (!confirm(`Unregister "${name}"?`)) return;
 		try {
 			await removeProject(name);
+			// Optimistic update: filter locally instead of re-fetching.
 			projects = projects.filter((p) => p.name !== name);
 			showToast(`${name} removed`);
 		} catch (e) {
@@ -58,6 +138,8 @@
 	<div class="page-header">
 		<div>
 			<h1>Projects</h1>
+			<!-- Count reflects the total registered projects, not a filtered view,
+			     since this page has no search/filter controls. -->
 			<p class="page-desc">
 				{projects.length} registered project{projects.length !== 1 ? 's' : ''}
 			</p>
@@ -73,6 +155,7 @@
 	{:else if error}
 		<p class="error-text">{error}</p>
 	{:else if projects.length === 0}
+		<!-- Empty state includes the CLI command for users who prefer the terminal. -->
 		<div class="empty-state">
 			<span class="empty-icon">P</span>
 			<p>No projects registered</p>
@@ -81,17 +164,25 @@
 	{:else}
 		<div class="project-list">
 			{#each projects as p, i}
+				<!-- 3-column grid: project info | meta badges | remove button -->
 				<div class="project-row card animate-in stagger-{Math.min(i + 1, 10)}">
 					<div class="project-info">
 						<span class="project-name">{p.name}</span>
+						<!-- Full filesystem path in monospace; overflow is truncated with
+						     ellipsis so long paths don't break the layout. -->
 						<span class="project-path">{p.path}</span>
 					</div>
 					<div class="project-meta">
+						<!-- env_files: detected template files in the project directory
+						     (e.g. .env.example). Shown as badges so the user knows which
+						     files vial will write to during a pour. -->
 						{#if p.env_files && p.env_files.length > 0}
 							{#each p.env_files as ef}
 								<span class="badge">{ef}</span>
 							{/each}
 						{/if}
+						<!-- last_poured: ISO timestamp of the most recent pour operation.
+						     Formatted as a locale date string for readability. -->
 						{#if p.last_poured}
 							<span class="meta-text">poured {new Date(p.last_poured).toLocaleDateString()}</span>
 						{/if}
@@ -103,6 +194,8 @@
 	{/if}
 </div>
 
+<!-- Register Project modal. The directory path field accepts any absolute path;
+     the server validates that the path exists and is readable. -->
 {#if showAdd}
 	<div class="modal-backdrop" onclick={() => (showAdd = false)} role="presentation">
 		<div class="modal" onclick={(e) => e.stopPropagation()} role="dialog">
