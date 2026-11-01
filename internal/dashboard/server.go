@@ -43,13 +43,13 @@ import (
 //     prevent timing-oracle attacks that could leak the token byte-by-byte.
 //   - Secret values are never written to logs; only key names appear there.
 type Server struct {
-	vm       *vault.VaultManager  // vault the dashboard operates on
-	registry *project.Registry    // project registry; may be nil if not configured
-	auditLog *audit.Log           // structured audit trail written alongside the vault
-	cfg      *config.Config       // application config; may be nil if WithConfig is not used
-	token    string               // 32-byte random hex session token
-	logger   *log.Logger          // structured logger for server lifecycle events
-	port     int                  // TCP port the listener binds to on 127.0.0.1
+	vm       *vault.VaultManager // vault the dashboard operates on
+	registry *project.Registry   // project registry; may be nil if not configured
+	auditLog *audit.Log          // structured audit trail written alongside the vault
+	cfg      *config.Config      // application config; may be nil if WithConfig is not used
+	token    string              // 32-byte random hex session token
+	logger   *log.Logger         // structured logger for server lifecycle events
+	port     int                 // TCP port the listener binds to on 127.0.0.1
 }
 
 // NewServer creates a new dashboard server.
@@ -116,6 +116,30 @@ func (s *Server) Token() string {
 // All requests pass through corsHostMiddleware before reaching any handler.
 // API routes are additionally wrapped by authMiddleware.
 func (s *Server) Start() error {
+	handler, err := s.Handler()
+	if err != nil {
+		return err
+	}
+
+	// Bind exclusively to the loopback address. Using 127.0.0.1 rather than
+	// ":port" ensures the OS rejects connections from external interfaces even
+	// if the firewall is misconfigured.
+	addr := fmt.Sprintf("127.0.0.1:%d", s.port)
+	listener, err := net.Listen("tcp", addr)
+	if err != nil {
+		return fmt.Errorf("listening on %s: %w", addr, err)
+	}
+
+	s.logger.Info("Dashboard running", "url", fmt.Sprintf("http://%s", addr))
+	return http.Serve(listener, handler)
+}
+
+// Handler builds the complete HTTP handler served by Start: every API route
+// wrapped in authMiddleware, the embedded SPA for all other paths, and the
+// Host-validation/CORS middleware as the outermost layer. It is separate from
+// Start so tests can exercise the exact production routing without binding a
+// listener.
+func (s *Server) Handler() (http.Handler, error) {
 	mux := http.NewServeMux()
 
 	// API routes — all protected by authMiddleware (Bearer token check).
@@ -141,28 +165,16 @@ func (s *Server) Start() error {
 	// filenames without a "static/" prefix.
 	staticFS, err := fs.Sub(frontendFS, "static")
 	if err != nil {
-		return fmt.Errorf("accessing embedded frontend: %w", err)
+		return nil, fmt.Errorf("accessing embedded frontend: %w", err)
 	}
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		serveStaticFile(w, r, staticFS)
 	})
 
-	// Bind exclusively to the loopback address. Using 127.0.0.1 rather than
-	// ":port" ensures the OS rejects connections from external interfaces even
-	// if the firewall is misconfigured.
-	addr := fmt.Sprintf("127.0.0.1:%d", s.port)
-	listener, err := net.Listen("tcp", addr)
-	if err != nil {
-		return fmt.Errorf("listening on %s: %w", addr, err)
-	}
-
 	// Wrap the mux with the Host-validation and CORS middleware. This is the
 	// outermost layer; every request passes through it before reaching any
 	// route handler.
-	handler := s.corsHostMiddleware(mux)
-
-	s.logger.Info("Dashboard running", "url", fmt.Sprintf("http://%s", addr))
-	return http.Serve(listener, handler)
+	return s.corsHostMiddleware(mux), nil
 }
 
 // corsHostMiddleware validates the Host header and sets CORS response headers.

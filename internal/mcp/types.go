@@ -37,8 +37,8 @@ type JSONRPCRequest struct {
 // JSONRPCResponse is a JSON-RPC 2.0 response. Exactly one of Result or Error
 // is non-nil; both being nil or both being non-nil is invalid per the spec.
 type JSONRPCResponse struct {
-	JSONRPC string        `json:"jsonrpc"`        // always "2.0"
-	ID      interface{}   `json:"id,omitempty"`   // echoes the request ID; null for notifications
+	JSONRPC string        `json:"jsonrpc"`          // always "2.0"
+	ID      interface{}   `json:"id,omitempty"`     // echoes the request ID; null for notifications
 	Result  interface{}   `json:"result,omitempty"` // success payload
 	Error   *JSONRPCError `json:"error,omitempty"`  // failure payload
 }
@@ -51,9 +51,9 @@ type JSONRPCResponse struct {
 //   - -32602: Invalid params
 //   - -32603: Internal error
 type JSONRPCError struct {
-	Code    int         `json:"code"`            // numeric error code
-	Message string      `json:"message"`         // short human-readable description
-	Data    interface{} `json:"data,omitempty"`  // optional additional detail (e.g. error string)
+	Code    int         `json:"code"`           // numeric error code
+	Message string      `json:"message"`        // short human-readable description
+	Data    interface{} `json:"data,omitempty"` // optional additional detail (e.g. error string)
 }
 
 // InitializeParams carries the client's capabilities sent in the "initialize"
@@ -129,7 +129,7 @@ type CallToolParams struct {
 // block. IsError distinguishes a tool-level failure (IsError == true, Content
 // carries the error message) from a protocol-level error (JSONRPCError).
 type CallToolResult struct {
-	Content []ContentBlock `json:"content"`         // one or more response blocks
+	Content []ContentBlock `json:"content"`           // one or more response blocks
 	IsError bool           `json:"isError,omitempty"` // true when the tool itself failed
 }
 

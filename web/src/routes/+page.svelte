@@ -94,7 +94,7 @@
 	/**
 	 * Displays a transient toast notification then clears it after 2.5 s.
 	 * @param {string} msg — Human-readable message.
-	 * @param {'success' | 'error'} [type='success'] — Controls toast colour.
+	 * @param {'success' | 'error'} [type='success'] - Controls toast colour.
 	 */
 	function showToast(msg, type = 'success') {
 		toast = { msg, type };

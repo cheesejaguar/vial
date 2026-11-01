@@ -8,6 +8,7 @@ import (
 	"path"
 	"strings"
 	"testing"
+	"testing/fstest"
 )
 
 // TestEmbeddedFSContainsJSFiles verifies that the embedded filesystem contains
@@ -61,45 +62,58 @@ func TestEmbeddedFSContainsJSFiles(t *testing.T) {
 
 // TestServeJSFileWithCorrectMIME verifies that serveStaticFile sets
 // Content-Type: application/javascript when serving a .js asset, and that the
-// response body is non-empty.
+// response body is the file's content. It uses an in-memory FS shaped like a
+// SvelteKit build so it runs whether or not the dashboard has been built.
 func TestServeJSFileWithCorrectMIME(t *testing.T) {
-	staticFS, err := fs.Sub(frontendFS, "static")
-	if err != nil {
-		t.Fatalf("fs.Sub: %v", err)
-	}
-
-	// Find a JS file path
-	var jsPath string
-	fs.WalkDir(staticFS, ".", func(p string, d fs.DirEntry, err error) error {
-		if err == nil && strings.HasSuffix(p, ".js") && jsPath == "" {
-			jsPath = p
-		}
-		return nil
-	})
-
-	if jsPath == "" {
-		t.Skip("No JS files in embedded FS (placeholder build)")
+	staticFS := fstest.MapFS{
+		"index.html":                    {Data: []byte("<!doctype html><html></html>")},
+		"_app/immutable/entry/start.js": {Data: []byte("export const x = 1;")},
 	}
 
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		serveStaticFile(w, r, staticFS)
 	})
 
-	req := httptest.NewRequest("GET", "/"+jsPath, nil)
+	req := httptest.NewRequest("GET", "/_app/immutable/entry/start.js", nil)
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 
 	ct := rec.Header().Get("Content-Type")
-	t.Logf("Request: /%s → Content-Type: %s (status %d)", jsPath, ct, rec.Code)
-
 	if rec.Code != 200 {
 		t.Errorf("status = %d, want 200", rec.Code)
 	}
 	if !strings.Contains(ct, "javascript") {
 		t.Errorf("Content-Type = %q, want something with 'javascript'", ct)
 	}
-	if rec.Body.Len() == 0 {
-		t.Error("empty response body")
+	if rec.Body.String() != "export const x = 1;" {
+		t.Errorf("body = %q, want the JS file content", rec.Body.String())
+	}
+}
+
+// TestServeUnknownPathFallsBackToIndex verifies the SPA fallback: a path with
+// no matching file is answered with index.html so the client router can
+// handle it.
+func TestServeUnknownPathFallsBackToIndex(t *testing.T) {
+	staticFS := fstest.MapFS{
+		"index.html": {Data: []byte("<!doctype html><title>spa</title>")},
+	}
+
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		serveStaticFile(w, r, staticFS)
+	})
+
+	req := httptest.NewRequest("GET", "/secrets/OPENAI_API_KEY", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != 200 {
+		t.Errorf("status = %d, want 200", rec.Code)
+	}
+	if ct := rec.Header().Get("Content-Type"); !strings.Contains(ct, "html") {
+		t.Errorf("Content-Type = %q, want text/html", ct)
+	}
+	if rec.Body.String() != "<!doctype html><title>spa</title>" {
+		t.Errorf("body = %q, want index.html content", rec.Body.String())
 	}
 }
 

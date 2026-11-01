@@ -27,9 +27,9 @@ type VaultFile struct {
 type KDFParamsJSON struct {
 	Algorithm   string `json:"algorithm"`
 	Memory      uint32 `json:"memory"`      // Argon2id memory cost in KiB
-	Iterations  uint32 `json:"iterations"`   // number of Argon2id passes
+	Iterations  uint32 `json:"iterations"`  // number of Argon2id passes
 	Parallelism uint8  `json:"parallelism"` // Argon2id lane count
-	Salt        string `json:"salt"`         // base64-encoded random salt
+	Salt        string `json:"salt"`        // base64-encoded random salt
 }
 
 // SecretEntry is a single encrypted secret stored in the vault file's Keys map.

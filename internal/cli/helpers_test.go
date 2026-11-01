@@ -43,9 +43,22 @@ func TestWriteFileWithDirs(t *testing.T) {
 	}
 }
 
+// TestIsInteractive verifies that isInteractive reports false when stdin is a
+// pipe (as it is for `echo pw | vial ...` or CI scripts). Stdin is swapped for
+// a pipe so the result does not depend on how the test binary was launched.
 func TestIsInteractive(t *testing.T) {
-	// In test environment, stdin is not a terminal
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("Pipe: %v", err)
+	}
+	defer r.Close()
+	defer w.Close()
+
+	orig := os.Stdin
+	os.Stdin = r
+	defer func() { os.Stdin = orig }()
+
 	if isInteractive() {
-		t.Skip("stdin is a terminal in this test environment")
+		t.Error("isInteractive() = true with stdin as a pipe, want false")
 	}
 }

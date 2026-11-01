@@ -1,6 +1,7 @@
 package share
 
 import (
+	"strings"
 	"testing"
 	"time"
 )
@@ -46,11 +47,20 @@ func TestCreateAndOpenBundle(t *testing.T) {
 // a bundle opened with the wrong passphrase.
 func TestOpenBundleWrongPassphrase(t *testing.T) {
 	secrets := map[string]string{"KEY": "value"}
-	bundle, _ := CreateBundle(secrets, "correct", 24*time.Hour)
+	bundle, err := CreateBundle(secrets, "correct", 24*time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	_, err := OpenBundle(bundle, "wrong")
+	payload, err := OpenBundle(bundle, "wrong")
 	if err == nil {
-		t.Error("expected error with wrong passphrase")
+		t.Fatal("expected error with wrong passphrase")
+	}
+	if !strings.Contains(err.Error(), "decryption failed") {
+		t.Errorf("err = %q, want a decryption failure", err)
+	}
+	if payload != nil {
+		t.Error("no payload should be returned on failure")
 	}
 }
 
@@ -58,11 +68,18 @@ func TestOpenBundleWrongPassphrase(t *testing.T) {
 // (already in the past) is rejected before attempting decryption.
 func TestOpenBundleExpired(t *testing.T) {
 	secrets := map[string]string{"KEY": "value"}
-	bundle, _ := CreateBundle(secrets, "pass", -1*time.Hour) // already expired
+	bundle, err := CreateBundle(secrets, "pass", -1*time.Hour) // already expired
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	_, err := OpenBundle(bundle, "pass")
+	_, err = OpenBundle(bundle, "pass")
 	if err == nil {
-		t.Error("expected error for expired bundle")
+		t.Fatal("expected error for expired bundle")
+	}
+	// The plaintext expiry check must reject it before decryption is tried.
+	if !strings.HasPrefix(err.Error(), "bundle expired at ") || strings.Contains(err.Error(), "verified from encrypted payload") {
+		t.Errorf("err = %q, want the pre-decryption expiry error", err)
 	}
 }
 
@@ -70,7 +87,10 @@ func TestOpenBundleExpired(t *testing.T) {
 // round-trip and that the decrypted secrets are still correct afterwards.
 func TestMarshalUnmarshal(t *testing.T) {
 	secrets := map[string]string{"KEY": "value"}
-	bundle, _ := CreateBundle(secrets, "pass", 24*time.Hour)
+	bundle, err := CreateBundle(secrets, "pass", 24*time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	data, err := bundle.Marshal()
 	if err != nil {

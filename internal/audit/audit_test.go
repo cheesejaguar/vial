@@ -2,8 +2,8 @@ package audit
 
 import (
 	"path/filepath"
-	"strings"
 	"testing"
+	"time"
 )
 
 // TestRecordAndRead verifies that events are persisted and returned newest-first,
@@ -49,6 +49,16 @@ func TestRecordAndRead(t *testing.T) {
 	if len(limited) != 2 {
 		t.Fatalf("expected 2 entries with limit, got %d", len(limited))
 	}
+	// The limit keeps the newest entries.
+	if limited[0].Event != EventGet || limited[1].Event != EventPour {
+		t.Errorf("limited events = [%s %s], want [get pour]", limited[0].Event, limited[1].Event)
+	}
+	if got := entries[1].Keys; len(got) != 2 || got[0] != "OPENAI_API_KEY" || got[1] != "DB_URL" {
+		t.Errorf("pour keys = %v, want [OPENAI_API_KEY DB_URL]", got)
+	}
+	if entries[1].Project != "/tmp/project" || entries[1].Detail != "2 matched" {
+		t.Errorf("pour project/detail = %q/%q", entries[1].Project, entries[1].Detail)
+	}
 }
 
 // TestReadEmpty confirms that reading a non-existent log file returns an empty
@@ -66,19 +76,19 @@ func TestReadEmpty(t *testing.T) {
 	}
 }
 
-// TestExportCSV checks that the CSV output includes the header row and at least
-// one event name from the provided entries.
+// TestExportCSV checks the exact CSV output: header row, one row per entry,
+// RFC 3339 timestamps, keys joined with ";", and quoted text columns.
 func TestExportCSV(t *testing.T) {
+	ts := time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC)
 	entries := []Entry{
-		{Event: EventPour, Keys: []string{"KEY1", "KEY2"}, Project: "/tmp/p"},
-		{Event: EventSet, Keys: []string{"KEY3"}},
+		{Timestamp: ts, Event: EventPour, Keys: []string{"KEY1", "KEY2"}, Project: "/tmp/p", Detail: "2 matched"},
+		{Timestamp: ts, Event: EventSet, Keys: []string{"KEY3"}},
 	}
 
-	csv := ExportCSV(entries)
-	if !strings.Contains(csv, "timestamp,event,keys,project,detail") {
-		t.Error("missing CSV header")
-	}
-	if !strings.Contains(csv, "pour") {
-		t.Error("missing pour entry")
+	want := "timestamp,event,keys,project,detail\n" +
+		`2026-01-02T03:04:05Z,pour,"KEY1;KEY2","/tmp/p","2 matched"` + "\n" +
+		`2026-01-02T03:04:05Z,set,"KEY3","",""` + "\n"
+	if got := ExportCSV(entries); got != want {
+		t.Errorf("ExportCSV =\n%s\nwant\n%s", got, want)
 	}
 }

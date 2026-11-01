@@ -38,12 +38,12 @@ import (
 // All fields are safe to transmit or store in plaintext — the sensitive data
 // is inside the Encrypted ciphertext, authenticated by AES-GCM.
 type Bundle struct {
-	Version   int    `json:"version"`             // schema version; currently always 1
-	Encrypted string `json:"encrypted"`           // base64-encoded AES-GCM ciphertext
-	Nonce     string `json:"nonce"`               // base64-encoded 12-byte GCM nonce
-	Salt      string `json:"salt"`                // base64-encoded 16-byte Argon2id salt
-	ExpiresAt string `json:"expires_at"`          // RFC3339 expiry for fast outer rejection
-	KeyCount  int    `json:"key_count"`           // number of secrets included (informational)
+	Version   int    `json:"version"`    // schema version; currently always 1
+	Encrypted string `json:"encrypted"`  // base64-encoded AES-GCM ciphertext
+	Nonce     string `json:"nonce"`      // base64-encoded 12-byte GCM nonce
+	Salt      string `json:"salt"`       // base64-encoded 16-byte Argon2id salt
+	ExpiresAt string `json:"expires_at"` // RFC3339 expiry for fast outer rejection
+	KeyCount  int    `json:"key_count"`  // number of secrets included (informational)
 }
 
 // BundlePayload is the plaintext structure sealed inside a Bundle.

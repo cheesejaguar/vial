@@ -2,8 +2,11 @@ package sync
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
+	"time"
 )
 
 // TestFilesystemPushPull exercises the full push → remote-modify → pull cycle
@@ -79,7 +82,7 @@ func TestFilesystemPushCreatesRemoteDir(t *testing.T) {
 	localPath := filepath.Join(localDir, "vault.json")
 	remotePath := filepath.Join(remoteDir, "sub", "dir", "vault.json")
 
-	os.WriteFile(localPath, []byte("data"), 0600)
+	mustWrite(t, localPath, "data")
 
 	backend := NewFilesystemBackend(remotePath)
 	if err := backend.Push(localPath); err != nil {
@@ -105,7 +108,7 @@ func TestFilesystemPullNoLocalBackup(t *testing.T) {
 	localPath := filepath.Join(localDir, "vault.json")
 
 	// Remote exists, local does NOT — no backup should be created
-	os.WriteFile(remotePath, []byte("remote-data"), 0600)
+	mustWrite(t, remotePath, "remote-data")
 
 	backend := NewFilesystemBackend(remotePath)
 	if err := backend.Pull(localPath); err != nil {
@@ -150,7 +153,7 @@ func TestFilesystemLastModified(t *testing.T) {
 		t.Errorf("expected ErrRemoteNotFound, got %v", err)
 	}
 
-	os.WriteFile(remotePath, []byte("test"), 0600)
+	mustWrite(t, remotePath, "test")
 
 	modTime, err := backend.LastModified()
 	if err != nil {
@@ -168,7 +171,7 @@ func TestCopyFileAtomic(t *testing.T) {
 	src := filepath.Join(dir, "src.txt")
 	dst := filepath.Join(dir, "dst.txt")
 
-	os.WriteFile(src, []byte("hello world"), 0644)
+	mustWrite(t, src, "hello world")
 
 	if err := copyFile(src, dst); err != nil {
 		t.Fatalf("copyFile: %v", err)
@@ -208,7 +211,7 @@ func TestCopyFilePreservesContent(t *testing.T) {
 	for i := range data {
 		data[i] = byte(i % 256)
 	}
-	os.WriteFile(src, data, 0600)
+	mustWrite(t, src, string(data))
 
 	if err := copyFile(src, dst); err != nil {
 		t.Fatalf("copyFile: %v", err)
@@ -276,32 +279,119 @@ func TestGitBackendEnsureRepoCreatesDir(t *testing.T) {
 	}
 }
 
-// TestGitBackendPushPullLocal exercises a full Push cycle using a local-only
-// git backend (no remote configured). It verifies that the vault file is
-// committed into the sync repo.
-func TestGitBackendPushPullLocal(t *testing.T) {
-	// Create a local vault file
+// TestGitBackendPushCommitsLocally exercises Push with no remote configured:
+// the vault file must be copied into the sync repo and committed.
+func TestGitBackendPushCommitsLocally(t *testing.T) {
 	localDir := t.TempDir()
 	localPath := filepath.Join(localDir, "vault.json")
-	os.WriteFile(localPath, []byte(`{"version":1}`), 0600)
+	mustWrite(t, localPath, `{"version":1}`)
 
-	// Create a git repo for sync
 	repoDir := filepath.Join(t.TempDir(), "sync-repo")
-
 	g := NewGitBackend(repoDir, "", "main")
 
-	// Push should work (local repo, no remote push)
 	if err := g.Push(localPath); err != nil {
 		t.Fatalf("Push: %v", err)
 	}
 
-	// Verify the file was committed
-	repoFile := filepath.Join(repoDir, "vault.json")
-	data, err := os.ReadFile(repoFile)
+	data, err := os.ReadFile(filepath.Join(repoDir, "vault.json"))
 	if err != nil {
 		t.Fatalf("read repo file: %v", err)
 	}
 	if string(data) != `{"version":1}` {
 		t.Errorf("repo file content = %q", data)
+	}
+
+	// The file must be committed, not just staged.
+	committed, err := g.gitOutput("show", "HEAD:vault.json")
+	if err != nil {
+		t.Fatalf("vault.json not in HEAD commit: %v", err)
+	}
+	if committed != `{"version":1}` {
+		t.Errorf("committed content = %q", committed)
+	}
+	if status, _ := g.gitOutput("status", "--porcelain"); strings.TrimSpace(status) != "" {
+		t.Errorf("working tree not clean after Push: %q", status)
+	}
+
+	// Pushing unchanged content is a no-op rather than an empty-commit error.
+	if err := g.Push(localPath); err != nil {
+		t.Errorf("second Push with no changes: %v", err)
+	}
+}
+
+// TestGitBackendPushPullRoundTrip pushes from one machine's sync repo to a
+// local bare "remote" and pulls it into a second machine's sync repo, checking
+// the pulled content, the .bak backup, and LastModified.
+func TestGitBackendPushPullRoundTrip(t *testing.T) {
+	remote := filepath.Join(t.TempDir(), "remote.git")
+	if out, err := exec.Command("git", "init", "--bare", remote).CombinedOutput(); err != nil {
+		t.Fatalf("git init --bare: %v\n%s", err, out)
+	}
+
+	// Machine A pushes its vault.
+	aVault := filepath.Join(t.TempDir(), "vault.json")
+	mustWrite(t, aVault, `{"version":1,"from":"A"}`)
+	a := NewGitBackend(filepath.Join(t.TempDir(), "a-sync"), remote, "vial-vault")
+	if err := a.Push(aVault); err != nil {
+		t.Fatalf("A Push: %v", err)
+	}
+
+	// Machine B has an older local vault and pulls.
+	bVault := filepath.Join(t.TempDir(), "vault.json")
+	mustWrite(t, bVault, `{"version":1,"from":"B-old"}`)
+	b := NewGitBackend(filepath.Join(t.TempDir(), "b-sync"), remote, "vial-vault")
+
+	if err := b.Pull(bVault); err != nil {
+		t.Fatalf("B Pull: %v", err)
+	}
+
+	got, err := os.ReadFile(bVault)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != `{"version":1,"from":"A"}` {
+		t.Errorf("pulled vault = %q, want A's content", got)
+	}
+	bak, err := os.ReadFile(bVault + ".bak")
+	if err != nil {
+		t.Fatalf("backup not created: %v", err)
+	}
+	if string(bak) != `{"version":1,"from":"B-old"}` {
+		t.Errorf("backup = %q, want B's previous content", bak)
+	}
+
+	modTime, err := b.LastModified()
+	if err != nil {
+		t.Fatalf("LastModified after pull: %v", err)
+	}
+	if time.Since(modTime) > time.Hour || time.Until(modTime) > time.Minute {
+		t.Errorf("LastModified = %v, want the time of A's commit (just now)", modTime)
+	}
+}
+
+// TestGitBackendPullMissingBranch verifies that pulling a branch the remote
+// does not have fails without touching the local vault.
+func TestGitBackendPullMissingBranch(t *testing.T) {
+	remote := filepath.Join(t.TempDir(), "remote.git")
+	if out, err := exec.Command("git", "init", "--bare", remote).CombinedOutput(); err != nil {
+		t.Fatalf("git init --bare: %v\n%s", err, out)
+	}
+
+	localVault := filepath.Join(t.TempDir(), "vault.json")
+	mustWrite(t, localVault, "local")
+
+	g := NewGitBackend(filepath.Join(t.TempDir(), "sync"), remote, "vial-vault")
+	if err := g.Pull(localVault); err == nil {
+		t.Fatal("expected Pull to fail when the remote branch does not exist")
+	}
+	if got, _ := os.ReadFile(localVault); string(got) != "local" {
+		t.Errorf("local vault changed to %q after failed pull", got)
+	}
+}
+
+func mustWrite(t *testing.T, path, content string) {
+	t.Helper()
+	if err := os.WriteFile(path, []byte(content), 0600); err != nil {
+		t.Fatal(err)
 	}
 }

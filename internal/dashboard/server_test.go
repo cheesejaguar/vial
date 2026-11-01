@@ -5,13 +5,15 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/awnumar/memguard"
 	"github.com/charmbracelet/log"
-	"os"
 
+	"github.com/cheesejaguar/vial/internal/audit"
 	"github.com/cheesejaguar/vial/internal/vault"
 )
 
@@ -52,26 +54,15 @@ func newTestServer(t *testing.T) *Server {
 	return srv
 }
 
-// buildMux creates the same mux that Start() would build, but without
-// starting a listener. It wraps the mux with corsHostMiddleware.
-func buildMux(s *Server) http.Handler {
-	mux := http.NewServeMux()
-	mux.HandleFunc("POST /api/auth/lock", s.authMiddleware(s.handleLock))
-	mux.HandleFunc("GET /api/auth/status", s.authMiddleware(s.handleAuthStatus))
-	mux.HandleFunc("GET /api/vault/secrets", s.authMiddleware(s.handleListSecrets))
-	mux.HandleFunc("GET /api/vault/secrets/{key}", s.authMiddleware(s.handleGetSecret))
-	mux.HandleFunc("DELETE /api/vault/secrets/{key}", s.authMiddleware(s.handleDeleteSecret))
-	mux.HandleFunc("POST /api/vault/secrets", s.authMiddleware(s.handleCreateSecret))
-	mux.HandleFunc("GET /api/vault/secrets/{key}/reveal", s.authMiddleware(s.handleRevealSecret))
-	mux.HandleFunc("GET /api/aliases", s.authMiddleware(s.handleListAliases))
-	mux.HandleFunc("POST /api/aliases", s.authMiddleware(s.handleCreateAlias))
-	mux.HandleFunc("DELETE /api/aliases/{alias}", s.authMiddleware(s.handleDeleteAlias))
-	mux.HandleFunc("GET /api/projects", s.authMiddleware(s.handleListProjects))
-	mux.HandleFunc("POST /api/projects", s.authMiddleware(s.handleCreateProject))
-	mux.HandleFunc("DELETE /api/projects/{name}", s.authMiddleware(s.handleDeleteProject))
-	mux.HandleFunc("GET /api/health/overview", s.authMiddleware(s.handleHealthOverview))
-	mux.HandleFunc("GET /api/config", s.authMiddleware(s.handleGetConfig))
-	return s.corsHostMiddleware(mux)
+// buildMux returns the production handler built by Server.Handler (the same
+// one Start serves), so routing tests cannot drift from the real route table.
+func buildMux(t *testing.T, s *Server) http.Handler {
+	t.Helper()
+	h, err := s.Handler()
+	if err != nil {
+		t.Fatalf("Handler: %v", err)
+	}
+	return h
 }
 
 func doRequest(handler http.Handler, method, path, token string) *httptest.ResponseRecorder {
@@ -109,7 +100,7 @@ func decodeJSONArray(t *testing.T, rec *httptest.ResponseRecorder) []any {
 
 func TestAuthMiddleware_MissingHeader(t *testing.T) {
 	srv := newTestServer(t)
-	handler := buildMux(srv)
+	handler := buildMux(t, srv)
 
 	rec := doRequest(handler, "GET", "/api/auth/status", "")
 	if rec.Code != http.StatusUnauthorized {
@@ -119,7 +110,7 @@ func TestAuthMiddleware_MissingHeader(t *testing.T) {
 
 func TestAuthMiddleware_WrongToken(t *testing.T) {
 	srv := newTestServer(t)
-	handler := buildMux(srv)
+	handler := buildMux(t, srv)
 
 	rec := doRequest(handler, "GET", "/api/auth/status", "bad-token")
 	if rec.Code != http.StatusUnauthorized {
@@ -129,7 +120,7 @@ func TestAuthMiddleware_WrongToken(t *testing.T) {
 
 func TestAuthMiddleware_CorrectToken(t *testing.T) {
 	srv := newTestServer(t)
-	handler := buildMux(srv)
+	handler := buildMux(t, srv)
 
 	rec := doRequest(handler, "GET", "/api/auth/status", srv.Token())
 	if rec.Code != http.StatusOK {
@@ -143,7 +134,7 @@ func TestAuthMiddleware_CorrectToken(t *testing.T) {
 
 func TestHostValidation_WrongHost(t *testing.T) {
 	srv := newTestServer(t)
-	handler := buildMux(srv)
+	handler := buildMux(t, srv)
 
 	req := httptest.NewRequest("GET", "/api/auth/status", nil)
 	req.Host = "evil.com"
@@ -158,7 +149,7 @@ func TestHostValidation_WrongHost(t *testing.T) {
 
 func TestHostValidation_CorrectHost(t *testing.T) {
 	srv := newTestServer(t)
-	handler := buildMux(srv)
+	handler := buildMux(t, srv)
 
 	rec := doRequest(handler, "GET", "/api/auth/status", srv.Token())
 	if rec.Code != http.StatusOK {
@@ -174,7 +165,7 @@ func TestHostValidation_CorrectHost(t *testing.T) {
 
 func TestHostValidation_Localhost(t *testing.T) {
 	srv := newTestServer(t)
-	handler := buildMux(srv)
+	handler := buildMux(t, srv)
 
 	req := httptest.NewRequest("GET", "/api/auth/status", nil)
 	req.Host = fmt.Sprintf("localhost:%d", testPort)
@@ -189,7 +180,7 @@ func TestHostValidation_Localhost(t *testing.T) {
 
 func TestCORS_OptionsRequest(t *testing.T) {
 	srv := newTestServer(t)
-	handler := buildMux(srv)
+	handler := buildMux(t, srv)
 
 	req := httptest.NewRequest("OPTIONS", "/api/vault/secrets", nil)
 	req.Host = fmt.Sprintf("127.0.0.1:%d", testPort)
@@ -210,7 +201,7 @@ func TestCORS_OptionsRequest(t *testing.T) {
 
 func TestAuthStatus_Unlocked(t *testing.T) {
 	srv := newTestServer(t)
-	handler := buildMux(srv)
+	handler := buildMux(t, srv)
 
 	rec := doRequest(handler, "GET", "/api/auth/status", srv.Token())
 	if rec.Code != http.StatusOK {
@@ -226,7 +217,7 @@ func TestAuthStatus_Unlocked(t *testing.T) {
 func TestAuthStatus_Locked(t *testing.T) {
 	srv := newTestServer(t)
 	srv.vm.Lock()
-	handler := buildMux(srv)
+	handler := buildMux(t, srv)
 
 	rec := doRequest(handler, "GET", "/api/auth/status", srv.Token())
 	if rec.Code != http.StatusOK {
@@ -245,7 +236,7 @@ func TestAuthStatus_Locked(t *testing.T) {
 
 func TestListSecrets_ReturnsCorrectKeys(t *testing.T) {
 	srv := newTestServer(t)
-	handler := buildMux(srv)
+	handler := buildMux(t, srv)
 
 	rec := doRequest(handler, "GET", "/api/vault/secrets", srv.Token())
 	if rec.Code != http.StatusOK {
@@ -271,7 +262,7 @@ func TestListSecrets_ReturnsCorrectKeys(t *testing.T) {
 
 func TestListSecrets_DoesNotExposeValues(t *testing.T) {
 	srv := newTestServer(t)
-	handler := buildMux(srv)
+	handler := buildMux(t, srv)
 
 	rec := doRequest(handler, "GET", "/api/vault/secrets", srv.Token())
 	arr := decodeJSONArray(t, rec)
@@ -290,7 +281,7 @@ func TestListSecrets_DoesNotExposeValues(t *testing.T) {
 
 func TestGetSecret_WithoutReveal(t *testing.T) {
 	srv := newTestServer(t)
-	handler := buildMux(srv)
+	handler := buildMux(t, srv)
 
 	rec := doRequest(handler, "GET", "/api/vault/secrets/API_KEY", srv.Token())
 	if rec.Code != http.StatusOK {
@@ -308,7 +299,7 @@ func TestGetSecret_WithoutReveal(t *testing.T) {
 
 func TestGetSecret_WithReveal(t *testing.T) {
 	srv := newTestServer(t)
-	handler := buildMux(srv)
+	handler := buildMux(t, srv)
 
 	rec := doRequest(handler, "GET", "/api/vault/secrets/API_KEY?reveal=true", srv.Token())
 	if rec.Code != http.StatusOK {
@@ -323,7 +314,7 @@ func TestGetSecret_WithReveal(t *testing.T) {
 
 func TestGetSecret_NotFound(t *testing.T) {
 	srv := newTestServer(t)
-	handler := buildMux(srv)
+	handler := buildMux(t, srv)
 
 	rec := doRequest(handler, "GET", "/api/vault/secrets/NONEXISTENT", srv.Token())
 	if rec.Code != http.StatusNotFound {
@@ -337,7 +328,7 @@ func TestGetSecret_NotFound(t *testing.T) {
 
 func TestDeleteSecret_Success(t *testing.T) {
 	srv := newTestServer(t)
-	handler := buildMux(srv)
+	handler := buildMux(t, srv)
 
 	rec := doRequest(handler, "DELETE", "/api/vault/secrets/API_KEY", srv.Token())
 	if rec.Code != http.StatusOK {
@@ -358,7 +349,7 @@ func TestDeleteSecret_Success(t *testing.T) {
 
 func TestDeleteSecret_NotFound(t *testing.T) {
 	srv := newTestServer(t)
-	handler := buildMux(srv)
+	handler := buildMux(t, srv)
 
 	rec := doRequest(handler, "DELETE", "/api/vault/secrets/NONEXISTENT", srv.Token())
 	if rec.Code != http.StatusNotFound {
@@ -373,7 +364,7 @@ func TestDeleteSecret_NotFound(t *testing.T) {
 func TestVaultLocked_EndpointsReturn403(t *testing.T) {
 	srv := newTestServer(t)
 	srv.vm.Lock()
-	handler := buildMux(srv)
+	handler := buildMux(t, srv)
 
 	endpoints := []struct {
 		method string
@@ -400,7 +391,7 @@ func TestVaultLocked_EndpointsReturn403(t *testing.T) {
 
 func TestListAliases_Empty(t *testing.T) {
 	srv := newTestServer(t)
-	handler := buildMux(srv)
+	handler := buildMux(t, srv)
 
 	rec := doRequest(handler, "GET", "/api/aliases", srv.Token())
 	if rec.Code != http.StatusOK {
@@ -419,7 +410,7 @@ func TestListAliases_Empty(t *testing.T) {
 
 func TestListProjects_NilRegistry(t *testing.T) {
 	srv := newTestServer(t)
-	handler := buildMux(srv)
+	handler := buildMux(t, srv)
 
 	rec := doRequest(handler, "GET", "/api/projects", srv.Token())
 	if rec.Code != http.StatusOK {
@@ -438,7 +429,7 @@ func TestListProjects_NilRegistry(t *testing.T) {
 
 func TestHealthOverview(t *testing.T) {
 	srv := newTestServer(t)
-	handler := buildMux(srv)
+	handler := buildMux(t, srv)
 
 	rec := doRequest(handler, "GET", "/api/health/overview", srv.Token())
 	if rec.Code != http.StatusOK {
@@ -469,7 +460,7 @@ func TestHealthOverview(t *testing.T) {
 
 func TestLockEndpoint(t *testing.T) {
 	srv := newTestServer(t)
-	handler := buildMux(srv)
+	handler := buildMux(t, srv)
 
 	// Vault starts unlocked
 	if !srv.vm.IsUnlocked() {
@@ -493,5 +484,91 @@ func TestLockEndpoint(t *testing.T) {
 
 	if srv.vm.IsUnlocked() {
 		t.Error("vault should be locked after POST /api/auth/lock")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Create / reveal secret
+// ---------------------------------------------------------------------------
+
+func TestCreateSecret_StoresValueInVault(t *testing.T) {
+	srv := newTestServer(t)
+	handler := buildMux(t, srv)
+
+	req := httptest.NewRequest("POST", "/api/vault/secrets", strings.NewReader(`{"key":"NEW_KEY","value":"new-value"}`))
+	req.Host = fmt.Sprintf("127.0.0.1:%d", testPort)
+	req.Header.Set("Authorization", "Bearer "+srv.Token())
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("expected 201, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	got, err := srv.vm.GetSecret("NEW_KEY")
+	if err != nil {
+		t.Fatalf("GetSecret after create: %v", err)
+	}
+	defer got.Destroy()
+	if string(got.Bytes()) != "new-value" {
+		t.Errorf("stored value = %q, want new-value", got.Bytes())
+	}
+}
+
+func TestCreateSecret_MissingKeyRejected(t *testing.T) {
+	srv := newTestServer(t)
+	handler := buildMux(t, srv)
+
+	req := httptest.NewRequest("POST", "/api/vault/secrets", strings.NewReader(`{"value":"v"}`))
+	req.Host = fmt.Sprintf("127.0.0.1:%d", testPort)
+	req.Header.Set("Authorization", "Bearer "+srv.Token())
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d", rec.Code)
+	}
+}
+
+func TestRevealSecret_ReturnsPlaintext(t *testing.T) {
+	srv := newTestServer(t)
+	handler := buildMux(t, srv)
+
+	rec := doRequest(handler, "GET", "/api/vault/secrets/DB_URL/reveal", srv.Token())
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", rec.Code)
+	}
+	m := decodeJSON(t, rec)
+	if m["value"] != "postgres://localhost" {
+		t.Errorf("value = %v, want postgres://localhost", m["value"])
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Audit endpoint
+// ---------------------------------------------------------------------------
+
+// TestAuditEndpoint_ReturnsLogEntries verifies GET /api/audit is routed and
+// returns entries from the audit log co-located with the vault file.
+func TestAuditEndpoint_ReturnsLogEntries(t *testing.T) {
+	srv := newTestServer(t)
+	handler := buildMux(t, srv)
+
+	log := audit.NewLog(filepath.Join(filepath.Dir(srv.vm.Path()), "audit.jsonl"))
+	if err := log.Record(audit.EventSet, []string{"API_KEY"}, "", "stored"); err != nil {
+		t.Fatalf("Record: %v", err)
+	}
+
+	rec := doRequest(handler, "GET", "/api/audit", srv.Token())
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", rec.Code)
+	}
+	arr := decodeJSONArray(t, rec)
+	if len(arr) != 1 {
+		t.Fatalf("expected 1 audit entry, got %d", len(arr))
+	}
+	entry := arr[0].(map[string]any)
+	if entry["event"] != string(audit.EventSet) || entry["detail"] != "stored" {
+		t.Errorf("unexpected audit entry: %v", entry)
 	}
 }
