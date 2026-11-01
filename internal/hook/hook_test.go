@@ -3,6 +3,7 @@ package hook
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -34,13 +35,19 @@ func TestInstallAndUninstall(t *testing.T) {
 		t.Error("IsInstalled returned false after install")
 	}
 
-	if got := content; got == "" {
-		t.Error("hook file is empty")
+	// Verify it is an executable shell script wrapped in the vial markers
+	if !strings.HasPrefix(content, "#!/") {
+		t.Errorf("hook should start with a shebang, got %q", content[:min(len(content), 20)])
 	}
-
-	// Verify it contains the markers
-	if got := content; !contains(got, hookMarkerStart) || !contains(got, hookMarkerEnd) {
+	if !strings.Contains(content, hookMarkerStart) || !strings.Contains(content, hookMarkerEnd) {
 		t.Error("hook file missing markers")
+	}
+	info, err := os.Stat(hookPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Mode().Perm()&0100 == 0 {
+		t.Errorf("hook mode = %o, want owner-executable", info.Mode().Perm())
 	}
 
 	// Install again should fail — double-install is a user error.
@@ -91,10 +98,10 @@ func TestInstallAppendsToExisting(t *testing.T) {
 	}
 
 	content := string(data)
-	if !contains(content, "existing hook") {
-		t.Error("existing content was lost")
+	if !strings.HasPrefix(content, existingContent) {
+		t.Error("existing content was lost or moved")
 	}
-	if !contains(content, hookMarkerStart) {
+	if !strings.Contains(content, hookMarkerStart) {
 		t.Error("vial hook not appended")
 	}
 
@@ -107,10 +114,10 @@ func TestInstallAppendsToExisting(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !contains(string(data), "existing hook") {
+	if !strings.Contains(string(data), "existing hook") {
 		t.Error("existing content was lost after uninstall")
 	}
-	if contains(string(data), hookMarkerStart) {
+	if strings.Contains(string(data), hookMarkerStart) {
 		t.Error("vial markers still present after uninstall")
 	}
 }
@@ -156,18 +163,4 @@ func TestShouldIgnore(t *testing.T) {
 	if shouldIgnore("src/app.js", "real_api_key=secret", patterns) {
 		t.Error("should not ignore non-matching")
 	}
-}
-
-// contains is a helper that avoids importing strings in the test file.
-func contains(s, substr string) bool {
-	return len(s) >= len(substr) && (s == substr || len(s) > 0 && containsSubstr(s, substr))
-}
-
-func containsSubstr(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
 }

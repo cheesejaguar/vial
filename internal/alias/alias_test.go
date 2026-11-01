@@ -1,6 +1,7 @@
 package alias
 
 import (
+	"sort"
 	"testing"
 )
 
@@ -35,8 +36,9 @@ func TestStoreAliasesFor(t *testing.T) {
 	s.Set("STRIPE_KEY", "STRIPE_SECRET_KEY")
 
 	aliases := s.AliasesFor("OPENAI_API_KEY")
-	if len(aliases) != 2 {
-		t.Fatalf("got %d aliases, want 2", len(aliases))
+	sort.Strings(aliases)
+	if len(aliases) != 2 || aliases[0] != "OAI_KEY" || aliases[1] != "OPENAI_KEY" {
+		t.Fatalf("AliasesFor(OPENAI_API_KEY) = %v, want [OAI_KEY OPENAI_KEY]", aliases)
 	}
 }
 

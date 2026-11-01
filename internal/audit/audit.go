@@ -37,7 +37,7 @@ const (
 // Fields are kept deliberately narrow so the log stays useful without leaking
 // secret values — Keys holds key names only, never their values.
 type Entry struct {
-	Timestamp time.Time `json:"timestamp"`        // UTC time of the operation
+	Timestamp time.Time `json:"timestamp"`         // UTC time of the operation
 	Event     EventType `json:"event"`             // operation type
 	Keys      []string  `json:"keys,omitempty"`    // key names involved, if applicable
 	Project   string    `json:"project,omitempty"` // project directory path, if applicable

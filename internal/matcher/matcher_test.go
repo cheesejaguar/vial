@@ -42,7 +42,10 @@ func TestExactMatcherNotFound(t *testing.T) {
 // lowercase keys must not match their uppercase vault counterparts here.
 func TestExactMatcherCaseSensitive(t *testing.T) {
 	m := &ExactMatcher{}
-	results, _ := m.Match("openai_api_key", []string{"OPENAI_API_KEY"})
+	results, err := m.Match("openai_api_key", []string{"OPENAI_API_KEY"})
+	if err != nil {
+		t.Fatalf("Match: %v", err)
+	}
 	if results != nil {
 		t.Error("case-different key should not match in tier 1")
 	}
@@ -89,7 +92,10 @@ func TestNormalizeMatcherPrefixStrip(t *testing.T) {
 // TestNormalizeMatcherNoMatch verifies that unrelated keys produce no results.
 func TestNormalizeMatcherNoMatch(t *testing.T) {
 	m := &NormalizeMatcher{}
-	results, _ := m.Match("COMPLETELY_DIFFERENT", []string{"OPENAI_API_KEY"})
+	results, err := m.Match("COMPLETELY_DIFFERENT", []string{"OPENAI_API_KEY"})
+	if err != nil {
+		t.Fatalf("Match: %v", err)
+	}
 	if len(results) != 0 {
 		t.Errorf("expected no matches, got %v", results)
 	}
@@ -117,13 +123,19 @@ func TestAliasMatcherUserDefined(t *testing.T) {
 	if results[0].Tier != 3 {
 		t.Errorf("Tier = %d, want 3", results[0].Tier)
 	}
+	if results[0].Confidence != 0.90 {
+		t.Errorf("Confidence = %f, want 0.90", results[0].Confidence)
+	}
 }
 
 // TestAliasMatcherPatternRule verifies that a regex pattern rule can catch
 // keys that match the pattern and redirect them to the canonical vault key.
 func TestAliasMatcherPatternRule(t *testing.T) {
 	store := alias.NewStore()
-	rule, _ := alias.NewPatternRule(`.*STRIPE.*SECRET.*`, "STRIPE_SECRET_KEY")
+	rule, err := alias.NewPatternRule(`.*STRIPE.*SECRET.*`, "STRIPE_SECRET_KEY")
+	if err != nil {
+		t.Fatalf("NewPatternRule: %v", err)
+	}
 	store.AddPattern(rule)
 
 	m := &AliasMatcher{Store: store}
@@ -216,7 +228,10 @@ func TestChainTierPriority(t *testing.T) {
 // when no tier produces any candidate.
 func TestChainReturnsNilWhenNoMatch(t *testing.T) {
 	chain := NewChain(&ExactMatcher{}, &NormalizeMatcher{})
-	result, _ := chain.Resolve("TOTALLY_DIFFERENT", []string{"OPENAI_API_KEY"})
+	result, err := chain.Resolve("TOTALLY_DIFFERENT", []string{"OPENAI_API_KEY"})
+	if err != nil {
+		t.Fatalf("Resolve: %v", err)
+	}
 	if result != nil {
 		t.Errorf("expected nil, got %v", result)
 	}
@@ -232,12 +247,30 @@ func TestChainResolveAll(t *testing.T) {
 		&AliasMatcher{Store: store},
 	)
 
-	results, err := chain.ResolveAll("OPENAI_KEY", []string{"OPENAI_API_KEY"})
+	// OPENAI_API_KEY matches exactly (tier 1) and OPENAI_KEY is a suffix
+	// variant (tier 3). Resolve would stop at tier 1; ResolveAll must not.
+	vault := []string{"OPENAI_API_KEY", "OPENAI_KEY"}
+
+	best, err := chain.Resolve("OPENAI_API_KEY", vault)
+	if err != nil {
+		t.Fatalf("Resolve: %v", err)
+	}
+	if best == nil || best.Tier != 1 {
+		t.Fatalf("Resolve = %+v, want the tier-1 exact match", best)
+	}
+
+	results, err := chain.ResolveAll("OPENAI_API_KEY", vault)
 	if err != nil {
 		t.Fatalf("ResolveAll: %v", err)
 	}
-	// Should get results from tier 3 (variant match)
-	if len(results) == 0 {
-		t.Fatal("expected at least one result")
+	byTier := map[int]string{}
+	for _, r := range results {
+		byTier[r.Tier] = r.VaultKey
+	}
+	if byTier[1] != "OPENAI_API_KEY" {
+		t.Errorf("missing tier-1 candidate OPENAI_API_KEY; got %+v", results)
+	}
+	if byTier[3] != "OPENAI_KEY" {
+		t.Errorf("missing tier-3 candidate OPENAI_KEY; got %+v", results)
 	}
 }

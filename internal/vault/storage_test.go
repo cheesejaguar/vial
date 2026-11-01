@@ -1,8 +1,10 @@
 package vault
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
+	"syscall"
 	"testing"
 )
 
@@ -92,8 +94,8 @@ func TestReadVaultFileCorrupted(t *testing.T) {
 	}
 
 	_, err := ReadVaultFile(path)
-	if err == nil {
-		t.Error("expected error for corrupted vault file")
+	if !errors.Is(err, ErrVaultCorrupted) {
+		t.Errorf("expected ErrVaultCorrupted, got %v", err)
 	}
 }
 
@@ -119,20 +121,47 @@ func TestWriteVaultFileCreatesDir(t *testing.T) {
 	}
 }
 
-// TestWithFileLock verifies that the callback is executed while the lock is held.
+// TestWithFileLock verifies that the callback is executed while the lock is
+// held: a second, non-blocking flock on the lock file must fail inside the
+// callback and succeed after WithFileLock returns. The callback's error is
+// propagated.
 func TestWithFileLock(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "vault.json")
+	lockPath := path + ".lock"
+
+	tryLock := func() error {
+		f, err := os.OpenFile(lockPath, os.O_RDWR, 0600)
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+		if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
+			return err
+		}
+		return syscall.Flock(int(f.Fd()), syscall.LOCK_UN)
+	}
 
 	called := false
 	err := WithFileLock(path, func() error {
 		called = true
+		if err := tryLock(); err == nil {
+			t.Error("lock file was not locked while fn ran")
+		}
 		return nil
 	})
 	if err != nil {
 		t.Fatalf("WithFileLock: %v", err)
 	}
 	if !called {
-		t.Error("fn was not called")
+		t.Fatal("fn was not called")
+	}
+	if err := tryLock(); err != nil {
+		t.Errorf("lock should be released after WithFileLock returns: %v", err)
+	}
+
+	sentinel := errors.New("boom")
+	if err := WithFileLock(path, func() error { return sentinel }); err != sentinel {
+		t.Errorf("WithFileLock returned %v, want the callback's error", err)
 	}
 }

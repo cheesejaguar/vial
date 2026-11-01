@@ -69,10 +69,10 @@ export function hasToken() {
  * caller receives a consistent Error object.
  *
  * @param {string} path — Path relative to /api, e.g. '/vault/secrets'.
- * @param {RequestInit} [options={}] — Standard fetch options. Headers in
+ * @param {RequestInit} [options={}] - Standard fetch options. Headers in
  *   options.headers are merged on top of the defaults; Authorization can be
  *   overridden this way if needed.
- * @returns {Promise<unknown>} Parsed JSON response body.
+ * @returns {Promise<any>} Parsed JSON response body.
  * @throws {Error} On 401 (token cleared) or any non-2xx status.
  */
 export async function apiFetch(path, options = {}) {

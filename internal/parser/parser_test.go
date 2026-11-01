@@ -280,9 +280,10 @@ EMPTY_KEY
 func TestInterpolate(t *testing.T) {
 	lookup := func(key string) (string, bool) {
 		m := map[string]string{
-			"HOST": "localhost",
-			"PORT": "5432",
-			"DB":   "mydb",
+			"HOST":      "localhost",
+			"PORT":      "5432",
+			"DB":        "mydb",
+			"EMPTY_VAR": "",
 		}
 		v, ok := m[key]
 		return v, ok
@@ -300,6 +301,7 @@ func TestInterpolate(t *testing.T) {
 		{"default :- with set var", "${HOST:-fallback}", "localhost"},
 		{"default :- with empty var", "${EMPTY_VAR:-fallback}", "fallback"},
 		{"default -", "${MISSING-fallback}", "fallback"},
+		{"default - with empty var keeps empty", "${EMPTY_VAR-fallback}", ""},
 		{"no interpolation", "plain value", "plain value"},
 		{"dollar at end", "price$", "price$"},
 		{"literal dollar sign", "$", "$"},
@@ -344,15 +346,9 @@ func TestWriteEnvFile(t *testing.T) {
 		t.Fatalf("ReadFile: %v", err)
 	}
 
-	content := string(data)
-	if !strings.Contains(content, "# Database config") {
-		t.Error("missing comment")
-	}
-	if !strings.Contains(content, "DB_URL=postgres://localhost/db") {
-		t.Error("missing DB_URL")
-	}
-	if !strings.Contains(content, "API_KEY=sk-abc123") {
-		t.Error("missing API_KEY")
+	want := "# Database config\nDB_URL=postgres://localhost/db\n\nAPI_KEY=sk-abc123\n"
+	if string(data) != want {
+		t.Errorf("file content = %q, want %q", data, want)
 	}
 
 	info, _ := os.Stat(path)

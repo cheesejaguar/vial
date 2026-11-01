@@ -47,7 +47,10 @@ func TestCommentMatcherBasic(t *testing.T) {
 // rather than a spurious match or an error.
 func TestCommentMatcherEmptyComment(t *testing.T) {
 	m := &CommentMatcher{}
-	results, _ := m.MatchWithComment("KEY", "", []string{"OPENAI_API_KEY"})
+	results, err := m.MatchWithComment("KEY", "", []string{"OPENAI_API_KEY"})
+	if err != nil {
+		t.Fatalf("MatchWithComment: %v", err)
+	}
 	if results != nil {
 		t.Error("expected nil for empty comment")
 	}
@@ -57,7 +60,10 @@ func TestCommentMatcherEmptyComment(t *testing.T) {
 // do not produce results, guarding against false positives on generic text.
 func TestCommentMatcherNoMatch(t *testing.T) {
 	m := &CommentMatcher{}
-	results, _ := m.MatchWithComment("KEY", "completely unrelated comment about nothing", []string{"OPENAI_API_KEY"})
+	results, err := m.MatchWithComment("KEY", "completely unrelated comment about nothing", []string{"OPENAI_API_KEY"})
+	if err != nil {
+		t.Fatalf("MatchWithComment: %v", err)
+	}
 	if results != nil {
 		t.Errorf("expected nil, got %v", results)
 	}
@@ -67,12 +73,13 @@ func TestCommentMatcherNoMatch(t *testing.T) {
 // text and removes stop words while preserving meaningful terms.
 func TestExtractKeywords(t *testing.T) {
 	tests := []struct {
-		comment string
-		wantAny []string
+		comment  string
+		wantAny  []string
+		wantNone []string // stop words that must be stripped
 	}{
-		{"Your Stripe secret key", []string{"stripe", "secret", "key"}},
-		{"The OpenAI API key for AI features", []string{"openai", "api", "key", "ai", "features"}},
-		{"", nil},
+		{"Your Stripe secret key", []string{"stripe", "secret", "key"}, []string{"your"}},
+		{"The OpenAI API key for AI features", []string{"openai", "api", "key", "ai", "features"}, []string{"the", "for"}},
+		{"", nil, nil},
 	}
 
 	for _, tt := range tests {
@@ -86,6 +93,14 @@ func TestExtractKeywords(t *testing.T) {
 				t.Errorf("extractKeywords(%q) missing %q (got %v)", tt.comment, want, got)
 			}
 		}
+		for _, stop := range tt.wantNone {
+			if gotSet[stop] {
+				t.Errorf("extractKeywords(%q) kept stop word %q (got %v)", tt.comment, stop, got)
+			}
+		}
+		if tt.comment == "" && len(got) != 0 {
+			t.Errorf("extractKeywords(\"\") = %v, want empty", got)
+		}
 	}
 }
 
@@ -97,17 +112,19 @@ func TestKeywordOverlap(t *testing.T) {
 		comment []string
 		key     []string
 		wantMin float64
+		wantMax float64
 	}{
-		{"exact service match", []string{"stripe", "secret", "key"}, []string{"STRIPE", "SECRET", "KEY"}, 0.5},
-		{"service expansion", []string{"openai", "key"}, []string{"OPENAI", "API", "KEY"}, 0.5},
-		{"no overlap", []string{"random", "words"}, []string{"STRIPE", "KEY"}, 0.0},
+		{"exact service match", []string{"stripe", "secret", "key"}, []string{"STRIPE", "SECRET", "KEY"}, 0.5, 1.0},
+		{"service expansion", []string{"openai", "key"}, []string{"OPENAI", "API", "KEY"}, 0.5, 1.0},
+		{"no overlap", []string{"random", "words"}, []string{"STRIPE", "KEY"}, 0.0, 0.0},
+		{"empty comment", nil, []string{"STRIPE", "KEY"}, 0.0, 0.0},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			score := keywordOverlap(tt.comment, tt.key)
-			if score < tt.wantMin {
-				t.Errorf("score = %f, want >= %f", score, tt.wantMin)
+			if score < tt.wantMin || score > tt.wantMax {
+				t.Errorf("score = %f, want in [%f, %f]", score, tt.wantMin, tt.wantMax)
 			}
 		})
 	}

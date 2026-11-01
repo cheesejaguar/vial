@@ -15,9 +15,9 @@ import (
 // Anthropic request shape, which separates the system prompt from the
 // message list.
 type AnthropicProvider struct {
-	endpoint string      // base URL, trailing slash stripped
-	apiKey   string      // Anthropic API key (x-api-key header)
-	model    string      // model string forwarded to the API
+	endpoint string // base URL, trailing slash stripped
+	apiKey   string // Anthropic API key (x-api-key header)
+	model    string // model string forwarded to the API
 	client   *http.Client
 }
 

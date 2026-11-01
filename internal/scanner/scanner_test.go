@@ -17,6 +17,7 @@ func TestScanDirJavaScript(t *testing.T) {
 const apiKey = process.env.OPENAI_API_KEY;
 const dbUrl = process.env["DATABASE_URL"];
 const port = process.env.PORT;
+const base = import.meta.env.VITE_BASE_URL;
 `
 	writeTestFile(t, dir, "app.js", js)
 
@@ -30,6 +31,7 @@ const port = process.env.PORT;
 		"OPENAI_API_KEY": true,
 		"DATABASE_URL":   true,
 		"PORT":           true,
+		"VITE_BASE_URL":  true,
 	}
 
 	for _, name := range names {
@@ -62,10 +64,7 @@ port = os.getenv("PORT")
 		t.Fatalf("ScanDir: %v", err)
 	}
 
-	names := result.UniqueVarNames()
-	if len(names) != 3 {
-		t.Errorf("got %d vars, want 3: %v", len(names), names)
-	}
+	assertNames(t, result.UniqueVarNames(), "OPENAI_API_KEY", "DATABASE_URL", "PORT")
 }
 
 // TestScanDirGo verifies that both os.Getenv and os.LookupEnv calls are
@@ -91,10 +90,7 @@ func main() {
 		t.Fatalf("ScanDir: %v", err)
 	}
 
-	names := result.UniqueVarNames()
-	if len(names) != 2 {
-		t.Errorf("got %d vars, want 2: %v", len(names), names)
-	}
+	assertNames(t, result.UniqueVarNames(), "API_KEY", "DEBUG")
 }
 
 // TestScanDirRuby verifies that ENV["KEY"] and ENV.fetch("KEY") are both
@@ -113,9 +109,7 @@ db = ENV.fetch("DATABASE_URL")
 		t.Fatalf("ScanDir: %v", err)
 	}
 
-	if len(result.UniqueVarNames()) != 2 {
-		t.Errorf("got %d vars, want 2", len(result.UniqueVarNames()))
-	}
+	assertNames(t, result.UniqueVarNames(), "OPENAI_API_KEY", "DATABASE_URL")
 }
 
 // TestScanDirSkipsNodeModules ensures that the node_modules directory is
@@ -172,10 +166,7 @@ func TestScanResultFilterMissing(t *testing.T) {
 		"OPENAI_API_KEY": true,
 	}
 
-	missing := result.FilterMissing(have)
-	if len(missing) != 2 {
-		t.Errorf("got %d missing, want 2: %v", len(missing), missing)
-	}
+	assertNames(t, result.FilterMissing(have), "DATABASE_URL", "PORT")
 }
 
 // TestScanDirMultiLanguage verifies that a directory containing source files
@@ -195,7 +186,27 @@ func TestScanDirMultiLanguage(t *testing.T) {
 
 	groups := result.GroupByLanguage()
 	if len(groups) != 3 {
-		t.Errorf("got %d languages, want 3", len(groups))
+		t.Errorf("got %d languages, want 3: %v", len(groups), groups)
+	}
+	for lang, want := range map[string]string{"javascript": "JS_KEY", "python": "PY_KEY", "go": "GO_KEY"} {
+		refs := groups[lang]
+		if len(refs) != 1 || refs[0].Name != want {
+			t.Errorf("groups[%q] = %+v, want one ref to %s", lang, refs, want)
+		}
+	}
+}
+
+// assertNames fails unless got contains exactly the wanted names, in order.
+func assertNames(t *testing.T, got []string, want ...string) {
+	t.Helper()
+	if len(got) != len(want) {
+		t.Fatalf("got %v, want %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("got %v, want %v", got, want)
+			return
+		}
 	}
 }
 

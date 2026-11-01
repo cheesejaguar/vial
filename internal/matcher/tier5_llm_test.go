@@ -7,17 +7,19 @@ import (
 	"github.com/cheesejaguar/vial/internal/llm"
 )
 
-// mockProvider returns a canned LLM response for testing without making real
-// network calls. The called field lets tests assert whether the provider was
-// invoked at all.
+// mockProvider stands in for the paid LLM API (an external boundary). It
+// returns a canned response, records whether it was invoked, and captures the
+// request so tests can check the prompt the matcher builds.
 type mockProvider struct {
 	response string
 	err      error
 	called   bool
+	req      llm.CompletionRequest
 }
 
-func (m *mockProvider) Complete(_ context.Context, _ llm.CompletionRequest) (*llm.CompletionResponse, error) {
+func (m *mockProvider) Complete(_ context.Context, req llm.CompletionRequest) (*llm.CompletionResponse, error) {
 	m.called = true
+	m.req = req
 	if m.err != nil {
 		return nil, m.err
 	}
@@ -51,6 +53,21 @@ func TestLLMMatcherSuccess(t *testing.T) {
 	}
 	if results[0].Tier != 5 {
 		t.Errorf("Tier = %d, want 5", results[0].Tier)
+	}
+	if results[0].Reason != "LLM: common variant" {
+		t.Errorf("Reason = %q, want the model's reason prefixed with LLM:", results[0].Reason)
+	}
+
+	// The request sent to the provider must carry the matching instructions,
+	// the requested key, and every candidate vault key, deterministically.
+	if mock.req.SystemPrompt != llm.MatchingSystemPrompt {
+		t.Error("SystemPrompt should be llm.MatchingSystemPrompt")
+	}
+	if mock.req.UserPrompt != llm.FormatMatchPrompt("OPENAI_KEY", []string{"OPENAI_API_KEY", "STRIPE_KEY"}) {
+		t.Errorf("UserPrompt = %q, want FormatMatchPrompt output", mock.req.UserPrompt)
+	}
+	if mock.req.Temperature != 0 || mock.req.MaxTokens != 200 {
+		t.Errorf("Temperature=%v MaxTokens=%d, want 0 and 200", mock.req.Temperature, mock.req.MaxTokens)
 	}
 }
 

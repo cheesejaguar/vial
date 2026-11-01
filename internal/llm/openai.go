@@ -17,9 +17,9 @@ import (
 // The provider name is always "openai" regardless of the actual endpoint so
 // that callers can use the name as a capability label rather than an identity.
 type OpenAIProvider struct {
-	endpoint string       // base URL without trailing slash
-	apiKey   string       // Bearer token value
-	model    string       // model string forwarded in the request body
+	endpoint string // base URL without trailing slash
+	apiKey   string // Bearer token value
+	model    string // model string forwarded in the request body
 	client   *http.Client
 }
 
